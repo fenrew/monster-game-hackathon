@@ -23,6 +23,50 @@
     "tierColor": "#9fb3c8"
   },
   {
+    "id": "outpost",
+    "name": "Frontier Outpost",
+    "kind": "safe",
+    "rects": [
+      [44, 28, 10, 8]
+    ],
+    "groundColor": "#cbb98f",
+    "grassColor": "#cbb98f",
+    "tierColor": "#9fb3c8"
+  },
+  {
+    "id": "gym_stone",
+    "name": "Stonehold Gym",
+    "kind": "safe",
+    "rects": [
+      [1, 31, 8, 8]
+    ],
+    "groundColor": "#b59b7a",
+    "grassColor": "#b59b7a",
+    "tierColor": "#7d6248"
+  },
+  {
+    "id": "gym_spark",
+    "name": "Voltage Gym",
+    "kind": "safe",
+    "rects": [
+      [70, 25, 9, 7]
+    ],
+    "groundColor": "#d9cf9a",
+    "grassColor": "#d9cf9a",
+    "tierColor": "#c9a227"
+  },
+  {
+    "id": "gym_tide",
+    "name": "Riptide Gym",
+    "kind": "safe",
+    "rects": [
+      [4, 50, 9, 8]
+    ],
+    "groundColor": "#9cc7d6",
+    "grassColor": "#9cc7d6",
+    "tierColor": "#2e86c1"
+  },
+  {
     "id": "cave",
     "name": "Crystal Cave",
     "kind": "hotspot",
@@ -43,7 +87,10 @@
       { "monster": "voltail", "weight": 20 },
       { "monster": "torrentoad", "weight": 15 },
       { "monster": "glimmoth", "weight": 8, "rare": true },
-      { "monster": "mirelurk", "weight": 6, "rare": true }
+      { "monster": "mirelurk", "weight": 6, "rare": true },
+      { "monster": "thundrake", "weight": 3, "rare": true, "tier": 2 },
+      { "monster": "geckrag", "weight": 10 },
+      { "monster": "fortoise", "weight": 6 }
     ],
     "loot": [
       { "item": "great_orb", "chance": 0.35 },
@@ -74,7 +121,10 @@
       { "monster": "cragmole", "weight": 20 },
       { "monster": "torrentoad", "weight": 10 },
       { "monster": "mirelurk", "weight": 4, "rare": true },
-      { "monster": "bouldurr", "weight": 4, "rare": true }
+      { "monster": "bouldurr", "weight": 4, "rare": true },
+      { "monster": "bubbloon", "weight": 15 },
+      { "monster": "slushpup", "weight": 15 },
+      { "monster": "shelloch", "weight": 8 }
     ],
     "loot": [
       { "item": "potion", "chance": 0.3 },
@@ -104,7 +154,9 @@
       { "monster": "puddlefin", "weight": 20 },
       { "monster": "zapling", "weight": 10 },
       { "monster": "pebblit", "weight": 10 },
-      { "monster": "voltail", "weight": 3, "rare": true }
+      { "monster": "voltail", "weight": 3, "rare": true },
+      { "monster": "geckrag", "weight": 18 },
+      { "monster": "sparkit", "weight": 10 }
     ],
     "loot": [
       { "item": "potion", "chance": 0.25 },
@@ -132,7 +184,10 @@
       { "monster": "pebblit", "weight": 20 },
       { "monster": "zapling", "weight": 20 },
       { "monster": "drizzlet", "weight": 20 },
-      { "monster": "fizzbit", "weight": 6, "rare": true }
+      { "monster": "fizzbit", "weight": 6, "rare": true },
+      { "monster": "sparkit", "weight": 15 },
+      { "monster": "bubbloon", "weight": 12 },
+      { "monster": "shelloch", "weight": 12 }
     ],
     "loot": [
       { "item": "orb", "chance": 0.2 },
@@ -141,5 +196,156 @@
     "groundColor": "#93cf6b",
     "grassColor": "#5fae3c",
     "tierColor": "#2ecc71"
+  },
+  {
+    "id": "steppe",
+    "name": "Windy Steppe",
+    "kind": "grass",
+    "rects": [
+      [40, 20, 40, 20]
+    ],
+    "levelRange": [12, 18],
+    "recommended": "2",
+    "groupSize": [1, 2],
+    "hpMult": 1.2,
+    "encounterRate": 0.12,
+    "coins": [30, 50],
+    "encounters": [
+      { "monster": "voltail", "weight": 15 },
+      { "monster": "bouldurr", "weight": 15 },
+      { "monster": "torrentoad", "weight": 15 },
+      { "monster": "drillord", "weight": 12 },
+      { "monster": "glimmoth", "weight": 8 },
+      { "monster": "mirelurk", "weight": 8 },
+      { "monster": "stormfin", "weight": 4, "rare": true, "tier": 2 },
+      { "monster": "bogrock", "weight": 4, "rare": true, "tier": 2 },
+      { "monster": "thunderhawk", "weight": 10 },
+      { "monster": "flintfang", "weight": 10 },
+      { "monster": "voltcoil", "weight": 3, "rare": true }
+    ],
+    "loot": [
+      { "item": "great_orb", "chance": 0.2 },
+      { "item": "super_potion", "chance": 0.15 },
+      { "item": "revive", "chance": 0.08 }
+    ],
+    "groundColor": "#c2b06a",
+    "grassColor": "#9c8a3c",
+    "tierColor": "#f39c12"
+  },
+  {
+    "id": "peaks",
+    "name": "Thunder Peaks",
+    "kind": "grass",
+    "rects": [
+      [40, 0, 40, 20]
+    ],
+    "levelRange": [17, 23],
+    "recommended": "3-4",
+    "groupSize": [2, 3],
+    "hpMult": 1.3,
+    "encounterRate": 0.12,
+    "coins": [45, 70],
+    "encounters": [
+      { "monster": "voltail", "weight": 20 },
+      { "monster": "glimmoth", "weight": 15 },
+      { "monster": "drillord", "weight": 15 },
+      { "monster": "thundrake", "weight": 12, "tier": 2 },
+      { "monster": "voltgeode", "weight": 12, "tier": 2 },
+      { "monster": "golemar", "weight": 8, "tier": 2 },
+      { "monster": "thundrake", "weight": 2, "rare": true, "tier": 3 },
+      { "monster": "thunderhawk", "weight": 12 },
+      { "monster": "geckrag", "weight": 10 },
+      { "monster": "slushpup", "weight": 8 }
+    ],
+    "loot": [
+      { "item": "great_orb", "chance": 0.3 },
+      { "item": "super_potion", "chance": 0.25 },
+      { "item": "revive", "chance": 0.12 },
+      { "item": "prism_orb", "chance": 0.06 }
+    ],
+    "groundColor": "#8d8f99",
+    "grassColor": "#6b8f5e",
+    "tierColor": "#e74c3c"
+  },
+  {
+    "id": "ruins",
+    "name": "Sunken Ruins",
+    "kind": "hotspot",
+    "hotspot": true,
+    "rects": [
+      [0, 40, 40, 20]
+    ],
+    "levelRange": [20, 26],
+    "recommended": "3-4",
+    "groupSize": [2, 3],
+    "hpMult": 1.4,
+    "encounterRate": 0.08,
+    "coins": [50, 80],
+    "encounters": [
+      { "monster": "mirelurk", "weight": 18 },
+      { "monster": "torrentoad", "weight": 15 },
+      { "monster": "bouldurr", "weight": 15 },
+      { "monster": "abyssqual", "weight": 14, "tier": 2 },
+      { "monster": "bogrock", "weight": 12, "tier": 2 },
+      { "monster": "golemar", "weight": 10, "tier": 2 },
+      { "monster": "abyssqual", "weight": 3, "rare": true, "tier": 3 },
+      { "monster": "medusurge", "weight": 12 },
+      { "monster": "corallord", "weight": 4, "rare": true },
+      { "monster": "voltcoil", "weight": 4, "rare": true }
+    ],
+    "loot": [
+      { "item": "super_potion", "chance": 0.3 },
+      { "item": "revive", "chance": 0.15 },
+      { "item": "prism_orb", "chance": 0.1 }
+    ],
+    "groundColor": "#7a8a7a",
+    "grassColor": "#5f7f62",
+    "tierColor": "#e74c3c"
+  },
+  {
+    "id": "throne",
+    "name": "Champion's Throne",
+    "kind": "safe",
+    "rects": [
+      [70, 51, 9, 8]
+    ],
+    "recommended": "4+",
+    "groundColor": "#5c4a24",
+    "grassColor": "#5c4a24",
+    "tierColor": "#ffd700"
+  },
+  {
+    "id": "wastes",
+    "name": "Obsidian Wastes",
+    "kind": "grass",
+    "rects": [
+      [40, 40, 40, 20]
+    ],
+    "levelRange": [24, 30],
+    "recommended": "4+",
+    "groupSize": [2, 3],
+    "hpMult": 1.5,
+    "encounterRate": 0.12,
+    "coins": [60, 100],
+    "encounters": [
+      { "monster": "drillord", "weight": 15 },
+      { "monster": "glimmoth", "weight": 12 },
+      { "monster": "voltgeode", "weight": 15, "tier": 2 },
+      { "monster": "golemar", "weight": 15, "tier": 2 },
+      { "monster": "thundrake", "weight": 12, "tier": 2 },
+      { "monster": "stormfin", "weight": 10, "tier": 2 },
+      { "monster": "golemar", "weight": 4, "rare": true, "tier": 3 },
+      { "monster": "thundrake", "weight": 3, "rare": true, "tier": 3 },
+      { "monster": "flintfang", "weight": 15 },
+      { "monster": "fortoise", "weight": 10 }
+    ],
+    "loot": [
+      { "item": "super_potion", "chance": 0.35 },
+      { "item": "revive", "chance": 0.2 },
+      { "item": "prism_orb", "chance": 0.12 }
+    ],
+    "groundColor": "#4a3b38",
+    "grassColor": "#5c4a3a",
+    "tierColor": "#9b1b30"
   }
 ]

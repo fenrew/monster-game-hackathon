@@ -31,6 +31,24 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Props | 
   return el;
 }
 
+/**
+ * True only while the player is typing in a visible text box. Sliders, buttons and hidden inputs (like the
+ * join screen's name box after joining) must not swallow movement keys.
+ */
+export function isTyping(): boolean {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el || el === document.body) return false;
+  const text = (el instanceof HTMLInputElement && ['text', 'search', 'email', 'password', 'url', ''].includes(el.type))
+    || el instanceof HTMLTextAreaElement || el.isContentEditable;
+  return text && el.offsetParent !== null;
+}
+
+/** Drops focus from anything that isn't a text box being typed in. */
+export function releaseFocus() {
+  const el = document.activeElement as HTMLElement | null;
+  if (el && el !== document.body && !isTyping()) el.blur();
+}
+
 export function $(id: string): HTMLElement {
   const el = document.getElementById(id);
   if (!el) throw new Error(`#${id} missing`);

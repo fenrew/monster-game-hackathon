@@ -1,0 +1,9 @@
+{
+  "badgeBonus": 0.1,
+  "championNeedsAllBadges": true,
+  "gyms": [
+    {"id": "stonehold", "name": "Stonehold Gym", "type": "stone", "leader": "brannoc", "badge": "Bedrock Badge", "icon": "🪨", "color": "#c49a6c", "zone": "gym_stone"},
+    {"id": "voltage", "name": "Voltage Gym", "type": "spark", "leader": "zara", "badge": "Surge Badge", "icon": "⚡", "color": "#f4d03f", "zone": "gym_spark"},
+    {"id": "riptide", "name": "Riptide Gym", "type": "tide", "leader": "marina", "badge": "Riptide Badge", "icon": "🌊", "color": "#5dade2", "zone": "gym_tide"}
+  ]
+}

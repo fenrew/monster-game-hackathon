@@ -1,4 +1,5 @@
 // Procedural SVG portraits so the game needs no art assets. Driven by `shape` + `color` in the data files.
+import { flairArt, sheenDefs, speciesArt, tierFx } from './monsterart';
 
 function shade(hex: string, amt: number): string {
   const n = parseInt(hex.slice(1), 16);
@@ -99,7 +100,28 @@ const BODIES: Record<string, (c: string, d: string, l: string) => string> = {
     <path d="M36 32 Q50 40 64 32" stroke="#0b3d33" stroke-width="2.5" fill="none"/>`,
 };
 
-export function portraitSVG(shape: string, color: string, size = 64): string {
-  const body = (BODIES[shape] ?? BODIES.rock)(color, shade(color, -0.45), shade(color, 0.45));
-  return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+let svgCounter = 0;
+
+/**
+ * Portrait for `key`: a species id with custom art (see monsterart.ts), otherwise a generic `shape` template.
+ * Higher tiers get a glowing aura in the tier colour.
+ */
+export function portraitSVG(
+  key: string, color: string, size = 64, aura?: { tier: number; color: string }, fallbackShape = key, artKey?: string, flair?: string[], animate = size >= 56,
+): string {
+  // gradient ids must be unique per <svg>, since many portraits share one page
+  const prefix = `p${(++svgCounter).toString(36)}`;
+  // evolved forms reuse their base species' drawing, in their own colours
+  const art = speciesArt(artKey ?? key, color, prefix);
+  // `animate`: SMIL motion where it can be seen (battle cards, popups); small icons and map textures stay static
+  const extra = flairArt(flair, color, prefix, animate);
+  const fx = aura ? tierFx(aura.tier, aura.color, prefix, animate) : null;
+  const body = art?.body ?? (BODIES[fallbackShape] ?? BODIES.rock)(color, shade(color, -0.45), shade(color, 0.45));
+  const ground = '<ellipse cx="50" cy="91" rx="26" ry="5" fill="#000" opacity="0.22"/>';
+  const bodyGroup = `<g id="${prefix}-body">${body}</g>`;
+  const lit = fx?.filter ? `<g filter="url(#${fx.filter})">${bodyGroup}</g>` : bodyGroup;
+  const sheen = fx?.sheen ? `<use href="#${prefix}-body" filter="url(#${prefix}-white)" mask="url(#${prefix}-sm)"/>` : '';
+  return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`
+    + `<defs>${art?.defs ?? ''}${fx?.defs ?? ''}${fx?.sheen ? sheenDefs(prefix) : ''}${extra.defs}</defs>`
+    + `${fx?.back ?? ''}${extra.back}${ground}${lit}${sheen}${extra.front}${fx?.front ?? ''}</svg>`;
 }

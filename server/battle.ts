@@ -1,8 +1,9 @@
 import type {
   AbilityDef, BattleAction, BattleKind, BattleView, BossDef, BossMoveDef, Hit, ServerMsg, Stages, StatKey, TrainerDef, ZoneDef,
 } from '../shared/types';
+import { augmentMods, mod, Mods } from '../shared/augments';
 import { cfg, data, formulas } from './data';
-import { Monster, monsterName } from './monster';
+import { createMonster, Monster, monsterName, tierForLevel } from './monster';
 import type { Player } from './player';
 
 export interface Combatant {
@@ -77,12 +78,12 @@ export function typeEffect(moveType: string, defType: string): number {
 }
 
 export function calcDamage(o: {
-  level: number; atk: number; def: number; power: number; moveType: string; userType: string; targetType: string;
+  level: number; atk: number; def: number; power: number; moveType: string; userType: string; targetType: string; critBonus?: number;
 }) {
   const base = (((2 * o.level) / 5 + 2) * o.power * (o.atk / Math.max(1, o.def))) / 50 + 2;
   const eff = typeEffect(o.moveType, o.targetType);
   const stab = o.moveType === o.userType ? cfg.combat.stab : 1;
-  const crit = Math.random() < cfg.combat.critChance;
+  const crit = Math.random() < cfg.combat.critChance + (o.critBonus ?? 0);
   const dmg = Math.max(1, Math.round(base * eff * stab * (crit ? cfg.combat.critMult : 1) * rand(0.85, 1)));
   return { dmg, eff, crit };
 }
@@ -115,6 +116,30 @@ export class Battle {
   private fallen: Combatant[] = [];
   /** HP changes from the last resolved round (floating damage numbers). */
   hits: Hit[] = [];
+  /** Healing fatigue per monster uid: multiplier on any further healing this fight. */
+  private healMult = new Map<string, number>();
+  /** Healing items used per player this fight (capped by combat.potionsPerFight). */
+  private potionsUsed = new Map<string, number>();
+  private potionsLeft = (p: Participant) => Math.max(0, cfg.combat.potionsPerFight - (this.potionsUsed.get(p.player.id) ?? 0));
+
+  /** Heals a monster, scaled by its fatigue. Healing abilities (fromAbility) add more fatigue. */
+  private heal(m: Monster, raw: number, fromAbility: boolean, bonus = 0): number {
+    const mult = this.healMult.get(m.uid) ?? 1;
+    const before = m.hp;
+    m.hp = Math.min(m.maxHp, m.hp + Math.max(1, Math.round(raw * mult * (1 + bonus))));
+    if (fromAbility) this.healMult.set(m.uid, mult * cfg.combat.healDecay);
+    return m.hp - before;
+  }
+
+/** Summed power mods of a fighter (from boss-fight augments). */
+  private modsOf(p: Participant): Mods {
+    return augmentMods(data, p.player.augments ?? [], p.player.defeatedTrainers ?? []);
+  }
+
+  private fatigueNote(m: Monster): string {
+    const mult = this.healMult.get(m.uid) ?? 1;
+    return mult < 1 ? ` (healing now ${Math.round(mult * 100)}%)` : '';
+  }
 
   constructor(
     private host: BattleHost,
@@ -142,14 +167,30 @@ export class Battle {
     };
   }
 
-  static bossCombatant(def: BossDef, N: number): { combatant: Combatant; state: BossState } {
-    const maxHp = Math.max(1, Math.round(formulas.bossHp({ baseHp: def.baseHp, N })));
+/**
+   * A trainer's whole team. Trainers with `matchLevel` (the Champion) shift their whole team up so the weakest
+   * monster is at least the challenger's strongest level + matchLevel, so the final battle stays hard however far players level.
+   */
+  static trainerTeam(def: TrainerDef, challenger?: Player): Combatant[] {
+    const strongest = Math.max(0, ...(challenger?.party ?? []).map((m) => m.level));
+    // the whole team shifts up together, so their ace stays the strongest
+    const lowest = Math.min(...def.team.map((t) => t.level));
+    const shift = def.matchLevel !== undefined ? Math.max(0, strongest + def.matchLevel - lowest) : 0;
+    return def.team.map((t) => {
+      const level = t.level + shift;
+      return Battle.trainerCombatant(createMonster(t.monster, level, tierForLevel(level, t.tier ?? 1)), def.name);
+    });
+  }
+
+  static bossCombatant(def: BossDef, N: number, loop = 0): { combatant: Combatant; state: BossState } {
+    const hpMult = 1 + cfg.boss.empowerHpPerLoop * loop;
+    const maxHp = Math.max(1, Math.round(formulas.bossHp({ baseHp: def.baseHp, N }) * hpMult));
     const monster: Monster = {
-      uid: `boss-${def.id}`, species: def.id, level: def.level, xp: 0, hp: maxHp, maxHp,
-      atk: def.stats.atk, def: def.stats.def, spd: def.stats.spd, abilities: [],
+      uid: `boss-${def.id}`, species: def.id, tier: 1, level: def.level, xp: 0, hp: maxHp, maxHp,
+      atk: Math.round(def.stats.atk * (1 + cfg.boss.empowerAtkPerLoop * loop)), def: def.stats.def, spd: def.stats.spd, abilities: [],
     };
     return {
-      combatant: { id: monster.uid, name: def.name, species: def.id, isBoss: true, type: def.type, monster, stages: {}, guardMult: 1 },
+      combatant: { id: monster.uid, name: bossDisplayName(def.name, loop), species: def.id, isBoss: true, type: def.type, monster, stages: {}, guardMult: 1 },
       state: {
         def, N, rotation: def.rotation, idx: 0, charging: null, planned: null, plannedTelegraphed: false,
         atkMult: 1, extraTargets: 0, phasesTriggered: new Set(), startedAt: Date.now(),
@@ -214,6 +255,7 @@ export class Battle {
           if (!this.enemies.some((e) => e.monster.hp > 0)) return 'Nothing to catch.';
         }
         if (item.kind === 'revive' && !p.player.party.some((m) => m.hp <= 0)) return 'No fainted monsters to revive.';
+        if (item.kind === 'heal' && this.potionsLeft(p) <= 0) return `You've used all ${cfg.combat.potionsPerFight} potions you can this fight.`;
         return null;
       }
       case 'swap': {
@@ -388,8 +430,10 @@ export class Battle {
         const item = data.items[a.itemId];
         if (item.kind === 'orb' || (p.player.items[a.itemId] ?? 0) <= 0) continue;
         if (item.kind === 'heal') {
+          if (this.potionsLeft(p) <= 0) continue;
+          this.potionsUsed.set(p.player.id, (this.potionsUsed.get(p.player.id) ?? 0) + 1);
           const before = p.active.hp;
-          p.active.hp = Math.min(p.active.maxHp, p.active.hp + Math.ceil(p.active.maxHp * (item.healPct ?? 0.5)));
+          this.heal(p.active, Math.ceil(p.active.maxHp * (item.healPct ?? 0.5)), false, mod(this.modsOf(p), 'heal'));
           this.consume(p.player, a.itemId);
           log.push(`${p.player.name} used a ${item.name}: ${monsterName(p.active)} +${p.active.hp - before} HP.`);
           hits.push({ target: p.player.id, amount: 0, kind: 'ability', text: item.name });
@@ -413,7 +457,7 @@ export class Battle {
     for (const p of this.participants.values()) {
       const a = p.choice!;
       if (a.kind === 'ability') {
-        queue.push({ side: 'player', p, priority: data.abilities[a.abilityId].priority ?? 0, speed: p.active.spd * stageMult(p.stages.spd), tie: Math.random() });
+        queue.push({ side: 'player', p, priority: data.abilities[a.abilityId].priority ?? 0, speed: p.active.spd * stageMult(p.stages.spd) * (1 + mod(this.modsOf(p), 'spd')), tie: Math.random() });
       } else if (a.kind === 'item' && data.items[a.itemId].kind === 'orb') {
         queue.push({ side: 'player', p, priority: 0, speed: p.active.spd * stageMult(p.stages.spd), tie: Math.random() });
       }
@@ -428,8 +472,12 @@ export class Battle {
     let caught: Combatant | null = null;
 
     const aliveParticipants = () => [...this.participants.values()].filter((p) => p.active.hp > 0);
+    // co-op aura: every Rallying Banner in the fight buffs everyone's damage
+    const teamDmg = [...this.participants.values()].reduce((s, q) => s + mod(this.modsOf(q), 'teamDmg'), 0);
     const hitPlayer = (p: Participant, dmg: number, crit?: boolean, eff?: number) => {
-      const final = Math.max(1, Math.round(dmg * p.guardMult * playerBulwark));
+      const m = this.modsOf(p);
+      const taken = Math.max(0.1, 1 - mod(m, 'dmgTaken')) * (this.round === 1 ? 1 - mod(m, 'openingGuard') : 1);
+      const final = Math.max(1, Math.round(dmg * p.guardMult * playerBulwark * taken));
       p.active.hp = Math.max(0, p.active.hp - final);
       hits.push({ target: p.player.id, amount: final, kind: 'dmg', crit, eff });
       return final;
@@ -451,7 +499,7 @@ export class Battle {
           const def = data.monsters[target.species];
           const chance = Math.max(0, Math.min(1, formulas.catchChance({
             catchRate: def.catchRate, orbMult: item.catchMult ?? 1, hp: target.monster.hp, maxHp: target.monster.maxHp,
-          })));
+          }) * (1 + mod(this.modsOf(p), 'catch'))));
           const pct = Math.round(chance * 100);
           hits.push({ target: p.player.id, amount: 0, kind: 'ability', text: `${item.name} · ${pct}% chance` });
           if (Math.random() < chance) {
@@ -478,11 +526,10 @@ export class Battle {
           if (ab.bulwark !== undefined) { playerBulwark = Math.min(playerBulwark, ab.bulwark); effects.push('shields the whole team'); }
           if (ab.healPct) {
             for (const t of team) {
-              const before = t.active.hp;
-              t.active.hp = Math.min(t.active.maxHp, t.active.hp + Math.ceil(t.active.maxHp * ab.healPct));
-              if (t.active.hp > before) hits.push({ target: t.player.id, amount: t.active.hp - before, kind: 'heal' });
+              const healed = this.heal(t.active, Math.ceil(t.active.maxHp * ab.healPct), true, mod(this.modsOf(t), 'heal'));
+              if (healed > 0) hits.push({ target: t.player.id, amount: healed, kind: 'heal' });
             }
-            effects.push(ab.target === 'team' ? 'heals the team' : 'recovers HP');
+            effects.push((ab.target === 'team' ? 'heals the team' : 'recovers HP') + (ab.target === 'self' ? this.fatigueNote(p.active) : ''));
           }
           if (ab.buff) {
             for (const t of team) applyStages(t.stages, ab.buff);
@@ -496,18 +543,37 @@ export class Battle {
           : [this.findTarget(a.targetId)].filter((t): t is Combatant => !!t);
         if (!targets.length) continue;
         const results: string[] = [];
+        let dealt = 0;
         for (const t of targets) {
           if (Math.random() > ab.accuracy) { results.push(`missed ${t.name}`); hits.push({ target: t.id, amount: 0, kind: 'miss' }); continue; }
           if (ab.debuff) applyStages(t.stages, ab.debuff);
           if (ab.power <= 0) { results.push(`${t.name}'s ${Object.keys(ab.debuff ?? {}).join('/')} fell`); continue; }
+          const pm = this.modsOf(p);
           const r = calcDamage({
             level: p.active.level, atk, def: t.monster.def * stageMult(t.stages.def), power: ab.power,
-            moveType: ab.type, userType, targetType: t.type,
+            moveType: ab.type, userType, targetType: t.type, critBonus: mod(pm, 'crit'),
           });
-          const dmg = Math.max(1, Math.round(r.dmg * t.guardMult * enemyBulwark));
+          const boost = 1 + mod(pm, 'dmg') + mod(pm, `typeDmg_${ab.type}` as keyof Mods) + teamDmg + (t.isBoss ? mod(pm, 'bossDmg') : 0);
+          const dmg = Math.max(1, Math.round(r.dmg * t.guardMult * enemyBulwark * boost));
           t.monster.hp = Math.max(0, t.monster.hp - dmg);
           hits.push({ target: t.id, amount: dmg, kind: 'dmg', crit: r.crit, eff: r.eff });
+          if (mod(pm, 'lifesteal') > 0 && p.active.hp > 0) {
+            const stolen = this.heal(p.active, dmg * mod(pm, 'lifesteal'), false, mod(pm, 'heal'));
+            if (stolen > 0) hits.push({ target: p.player.id, amount: stolen, kind: 'heal' });
+          }
           results.push(`${t.name} -${dmg}${effText(r.eff, r.crit)}${t.monster.hp <= 0 ? ' and it fainted!' : ''}`);
+          dealt += dmg;
+        }
+        // drain heals the user from the damage dealt; recoil hurts it
+        if (ab.drain && dealt > 0 && p.active.hp > 0) {
+          const healed = this.heal(p.active, dealt * ab.drain, false, mod(this.modsOf(p), 'heal'));
+          if (healed > 0) { hits.push({ target: p.player.id, amount: healed, kind: 'heal' }); results.push(`drained ${healed} HP`); }
+        }
+        if (ab.recoil && dealt > 0) {
+          const back = Math.max(1, Math.round(dealt * ab.recoil));
+          p.active.hp = Math.max(0, p.active.hp - back);
+          hits.push({ target: p.player.id, amount: back, kind: 'dmg' });
+          results.push(`took ${back} recoil`);
         }
         log.push(`${who} used ${ab.name}: ${sentence(results)}`);
       } else {
@@ -545,12 +611,20 @@ export class Battle {
       }
     }
 
-    // A trainer sends out their next monster once the current one faints.
-    if (this.enemies.every((e) => e.monster.hp <= 0) && this.reserve.length) {
-      const next = this.reserve.shift()!;
-      this.fallen.push(...this.enemies);
-      this.enemies.splice(0, this.enemies.length, next);
-      log.push(`${this.trainer?.def.name ?? 'The trainer'} sends out ${data.monsters[next.species].name}! (${this.reserve.length} left in reserve)`);
+    // A trainer sends out their next monster once the current one faints. The elite trainer fields one monster
+    // per challenger at once (up to combat.eliteMaxActive), so bigger groups face a bigger battle.
+    if (this.reserve.length) {
+      const alive = this.enemies.filter((e) => e.monster.hp > 0);
+      const want = this.trainer?.def.elite ? Math.max(1, Math.min(cfg.combat.eliteMaxActive ?? 1, this.participants.size)) : 1;
+      if (alive.length < want) {
+        this.fallen.push(...this.enemies.filter((e) => e.monster.hp <= 0));
+        while (alive.length < want && this.reserve.length) {
+          const next = this.reserve.shift()!;
+          alive.push(next);
+          log.push(`${this.trainer?.def.name ?? 'The trainer'} sends out ${data.monsters[next.species].name}! (${this.reserve.length} left in reserve)`);
+        }
+        this.enemies.splice(0, this.enemies.length, ...alive);
+      }
     }
 
     this.log = log;
@@ -575,6 +649,27 @@ export class Battle {
     let r = Math.random() * weights.reduce((a, b) => a + b, 0);
     let abilityId = m.abilities[0];
     for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r <= 0) { abilityId = m.abilities[i]; break; } }
+    // The elite trainer fights smart: heal when low, otherwise the most damaging move on the most vulnerable target.
+    let forcedTarget: Participant | null = null;
+    if (this.trainer?.def.elite) {
+      const healMove = m.abilities.find((id) => data.abilities[id].healPct && data.abilities[id].target !== 'team');
+      if (healMove && hpPct < 0.3 && (this.healMult.get(m.uid) ?? 1) > 0.5) {
+        abilityId = healMove;
+      } else {
+        let best = -1;
+        const foes = alive();
+        for (const id of m.abilities) {
+          const a = data.abilities[id];
+          if (a.power <= 0) continue;
+          for (const p of foes) {
+            const foeType = data.monsters[p.active.species].type;
+            const score = a.power * a.accuracy * typeEffect(a.type, foeType) * (a.type === e.type ? cfg.combat.stab : 1)
+              * (a.target === 'allEnemies' ? 0.8 * foes.length : 1) * (2 - p.active.hp / p.active.maxHp);
+            if (score > best) { best = score; abilityId = id; forcedTarget = p; }
+          }
+        }
+      }
+    }
     const ab: AbilityDef = data.abilities[abilityId];
     hits.push({ target: e.id, amount: 0, kind: 'ability', text: ab.name });
     if (ab.target === 'self' || ab.target === 'team') {
@@ -582,18 +677,18 @@ export class Battle {
       if (ab.guard !== undefined) e.guardMult = Math.min(e.guardMult, ab.guard);
       if (ab.healPct) {
         for (const t of team) {
-          const before = t.monster.hp;
-          t.monster.hp = Math.min(t.monster.maxHp, t.monster.hp + Math.ceil(t.monster.maxHp * ab.healPct));
-          if (t.monster.hp > before) hits.push({ target: t.id, amount: t.monster.hp - before, kind: 'heal' });
+          const healed = this.heal(t.monster, Math.ceil(t.monster.maxHp * ab.healPct), true);
+          if (healed > 0) hits.push({ target: t.id, amount: healed, kind: 'heal' });
         }
       }
       if (ab.buff) for (const t of team) applyStages(t.stages, ab.buff);
       log.push(`${e.name} used ${ab.name}.`);
       return { bulwark: ab.bulwark };
     }
-    const targets = ab.target === 'allEnemies' ? alive() : [pick(alive())].filter(Boolean);
+    const targets = ab.target === 'allEnemies' ? alive() : [forcedTarget ?? pick(alive())].filter(Boolean);
     if (!targets.length) return {};
     const results: string[] = [];
+    let dealt = 0;
     for (const p of targets) {
       if (Math.random() > ab.accuracy) { results.push(`missed ${monsterName(p.active)}`); hits.push({ target: p.player.id, amount: 0, kind: 'miss' }); continue; }
       if (ab.debuff) applyStages(p.stages, ab.debuff);
@@ -603,7 +698,18 @@ export class Battle {
         power: ab.power, moveType: ab.type, userType: e.type, targetType: data.monsters[p.active.species].type,
       });
       const dmg = hitPlayer(p, r.dmg, r.crit, r.eff);
+      dealt += dmg;
       results.push(`${p.player.name}'s ${monsterName(p.active)} -${dmg}${effText(r.eff, r.crit)}`);
+    }
+    if (ab.drain && dealt > 0) {
+      const healed = this.heal(m, dealt * ab.drain, false);
+      if (healed > 0) { hits.push({ target: e.id, amount: healed, kind: 'heal' }); results.push(`drained ${healed} HP`); }
+    }
+    if (ab.recoil && dealt > 0) {
+      const back = Math.max(1, Math.round(dealt * ab.recoil));
+      m.hp = Math.max(0, m.hp - back);
+      hits.push({ target: e.id, amount: back, kind: 'dmg' });
+      results.push(`took ${back} recoil${m.hp <= 0 ? ' and fainted!' : ''}`);
     }
     log.push(`${e.name} used ${ab.name}: ${sentence(results)}`);
     return {};
@@ -622,10 +728,9 @@ export class Battle {
     const mv = b.def.moves[b.planned];
     hits.push({ target: e.id, amount: 0, kind: 'ability', text: mv.name });
     if (mv.targets === 'self') {
-      const heal = Math.ceil(e.monster.maxHp * (mv.healPct ?? 0));
-      e.monster.hp = Math.min(e.monster.maxHp, e.monster.hp + heal);
+      const heal = this.heal(e.monster, Math.ceil(e.monster.maxHp * (mv.healPct ?? 0)), true);
       hits.push({ target: e.id, amount: heal, kind: 'heal' });
-      log.push(`${b.def.name} used ${mv.name} and recovered ${heal} HP!`);
+      log.push(`${b.def.name} used ${mv.name} and recovered ${heal} HP!${this.fatigueNote(e.monster)}`);
       return;
     }
     const pool = alive();
@@ -687,17 +792,18 @@ export class Battle {
       id: this.id,
       kind: this.kind,
       zoneName: this.zone.name,
+      zoneId: this.zone.id,
       round: this.round,
       remainingMs: Math.max(0, this.deadline - Date.now()),
       roundMs: cfg.combat.roundSeconds * 1000,
       enemies: this.enemies.map((e) => ({
-        id: e.id, name: e.name, species: e.species, isBoss: e.isBoss, type: e.type, level: e.monster.level,
-        hp: e.monster.hp, maxHp: e.monster.maxHp, fainted: e.monster.hp <= 0,
+        id: e.id, name: e.name, species: e.species, isBoss: e.isBoss, type: e.type, level: e.monster.level, tier: e.monster.tier,
+        hp: e.monster.hp, maxHp: e.monster.maxHp, fainted: e.monster.hp <= 0, healMult: this.healMult.get(e.monster.uid) ?? 1,
       })),
       participants: [...this.participants.values()].map((q) => ({
         playerId: q.player.id, name: q.player.name, color: q.player.color, monsterName: monsterName(q.active),
-        species: q.active.species, level: q.active.level, hp: q.active.hp, maxHp: q.active.maxHp,
-        chosen: !!q.choice, connected: !!q.player.ws,
+        species: q.active.species, level: q.active.level, tier: q.active.tier, hp: q.active.hp, maxHp: q.active.maxHp,
+        chosen: !!q.choice, connected: !!q.player.ws, healMult: this.healMult.get(q.active.uid) ?? 1,
       })),
       intent: this.intent,
       intentDanger: this.intentDanger,
@@ -713,9 +819,16 @@ export class Battle {
         chosen: !!p.choice,
         choiceLabel: p.choice ? this.actionLabel(p, p.choice) : null,
         defaultLabel: this.actionLabel(p, this.defaultAction(p)),
+        potionsLeft: this.potionsLeft(p),
       },
     };
   }
+}
+
+/** "Gravemaw", then "Gravemaw (Empowered II)" on the next cycle, and so on. */
+export function bossDisplayName(name: string, loop: number): string {
+  const roman = ['', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+  return loop > 0 ? `${name} (Empowered ${roman[loop] ?? loop + 1})` : name;
 }
 
 /** Joins hit results into one log sentence without doubling punctuation. */

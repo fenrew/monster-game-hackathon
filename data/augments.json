@@ -1,0 +1,50 @@
+{
+  "rarities": {
+      "silver": {
+          "name": "Silver",
+          "color": "#c0c7cf"
+      },
+      "gold": {
+          "name": "Gold",
+          "color": "#f2b33d"
+      },
+      "prismatic": {
+          "name": "Prismatic",
+          "color": "#d58cff"
+      }
+  },
+  "rarityWeights": [
+    {"silver": 75, "gold": 22, "prismatic": 3},
+    {"silver": 55, "gold": 37, "prismatic": 8},
+    {"silver": 40, "gold": 45, "prismatic": 15}
+  ],
+  "rerollsPerOffer": 1,
+  "optionsPerOffer": 3,
+  "augments": [
+    {"id": "sharp_claws", "name": "Sharpened Claws", "icon": "🗡️", "rarity": "silver", "description": "Your monsters deal 6% more damage.", "mods": {"dmg": 0.06}},
+    {"id": "thick_hide", "name": "Thick Hide", "icon": "🛡️", "rarity": "silver", "description": "Your monsters take 5% less damage.", "mods": {"dmgTaken": 0.05}},
+    {"id": "tailwind", "name": "Tailwind", "icon": "💨", "rarity": "silver", "description": "Your monsters are 8% faster, so they act earlier.", "mods": {"spd": 0.08}},
+    {"id": "golden_orbs", "name": "Golden Orbs", "icon": "🟡", "rarity": "silver", "description": "+20% catch chance with every orb.", "mods": {"catch": 0.2}},
+    {"id": "fast_learner", "name": "Fast Learner", "icon": "📚", "rarity": "silver", "description": "+13% XP from every fight.", "mods": {"xp": 0.13}},
+    {"id": "treasure_hunter", "name": "Treasure Hunter", "icon": "💰", "rarity": "silver", "description": "+25% coins from fights.", "mods": {"coins": 0.25}},
+    {"id": "care_package", "name": "Care Package", "icon": "🎁", "rarity": "silver", "description": "Instantly get a Super Potion and a Revive.", "grant": {"items": {"super_potion": 1, "revive": 1}}},
+    {"id": "orb_stash", "name": "Orb Stash", "icon": "🎒", "rarity": "silver", "description": "Instantly get 3 Great Orbs.", "grant": {"items": {"great_orb": 3}}},
+    {"id": "merchants_friend", "name": "Merchant's Friend", "icon": "🏷️", "rarity": "silver", "description": "Everything in shops costs 15% less.", "mods": {"shopDiscount": 0.15}},
+    {"id": "quick_recovery", "name": "Quick Recovery", "icon": "⏱️", "rarity": "silver", "description": "Respawn 25% faster after a wipe.", "mods": {"respawn": 0.25}},
+    {"id": "opening_guard", "name": "Opening Guard", "icon": "🧱", "rarity": "silver", "description": "Your monsters take 25% less damage in the first round of every fight.", "mods": {"openingGuard": 0.25}},
+    {"id": "storm_caller", "name": "Storm Caller", "icon": "⚡", "rarity": "gold", "description": "Spark moves deal 15% more damage.", "mods": {"typeDmg_spark": 0.15}},
+    {"id": "earthshaker", "name": "Earthshaker", "icon": "🪨", "rarity": "gold", "description": "Stone moves deal 15% more damage.", "mods": {"typeDmg_stone": 0.15}},
+    {"id": "tidebringer", "name": "Tidebringer", "icon": "🌊", "rarity": "gold", "description": "Tide moves deal 15% more damage.", "mods": {"typeDmg_tide": 0.15}},
+    {"id": "lucky_strikes", "name": "Lucky Strikes", "icon": "🍀", "rarity": "gold", "description": "+6% critical hit chance and slightly better odds of rare monsters.", "mods": {"crit": 0.06}, "grant": {"rareLuck": 0.25}},
+    {"id": "giant_slayer", "name": "Giant Slayer", "icon": "🐉", "rarity": "gold", "description": "Your monsters deal 18% more damage to bosses.", "mods": {"bossDmg": 0.18}},
+    {"id": "vampiric_fangs", "name": "Vampiric Fangs", "icon": "🩸", "rarity": "gold", "description": "Your monsters heal 8% of the damage they deal.", "mods": {"lifesteal": 0.08}},
+    {"id": "fusion_adept", "name": "Fusion Adept", "icon": "⚗️", "rarity": "gold", "description": "Fusions cost 25% less.", "mods": {"fusionDiscount": 0.25}},
+    {"id": "training_camp", "name": "Training Camp", "icon": "🏕️", "rarity": "gold", "description": "Monsters that sat out a fight still get 25% of its XP.", "mods": {"partyXp": 0.25}},
+    {"id": "second_wind", "name": "Second Wind", "icon": "💚", "rarity": "gold", "description": "All healing on your monsters is 20% stronger.", "mods": {"heal": 0.2}},
+    {"id": "rallying_banner", "name": "Rallying Banner", "icon": "🚩", "rarity": "prismatic", "description": "EVERY ally in your fights deals 6% more damage. Stacks between players.", "mods": {"teamDmg": 0.06}},
+    {"id": "glass_cannon", "name": "Glass Cannon", "icon": "💥", "rarity": "prismatic", "description": "Your monsters deal 18% more damage but take 7% more.", "mods": {"dmg": 0.18, "dmgTaken": -0.07}},
+    {"id": "jackpot", "name": "Jackpot", "icon": "💎", "rarity": "prismatic", "description": "Instantly get 300 coins and better odds of rare monsters.", "grant": {"coins": 300, "rareLuck": 0.5}},
+    {"id": "apex_predator", "name": "Apex Predator", "icon": "👑", "rarity": "prismatic", "description": "+8% damage, 5% less damage taken and +5% speed.", "mods": {"dmg": 0.08, "dmgTaken": 0.05, "spd": 0.05}},
+    {"id": "ancient_wisdom", "name": "Ancient Wisdom", "icon": "🔮", "rarity": "prismatic", "description": "+30% XP, and benched monsters get 25% of it too.", "mods": {"xp": 0.3, "partyXp": 0.25}}
+  ]
+}

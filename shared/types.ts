@@ -16,6 +16,8 @@ export interface AbilityDef {
   guard?: number;   // damage multiplier for the user this round
   bulwark?: number; // damage multiplier for the user's whole team this round
   healPct?: number;
+  drain?: number;  // heal the user by this share of the damage dealt
+  recoil?: number; // the user takes this share of the damage dealt
   buff?: Stages;
   debuff?: Stages;
   description?: string;
@@ -33,6 +35,8 @@ export interface MonsterDef {
   evolvesTo?: string;
   evolveLevel?: number;
   fusion?: boolean;   // only obtainable from the Fusion Lab
+  art?: string;       // reuse another species' art (evolved forms), recoloured with `color`
+  flair?: string[];   // extra visual flourishes: wings, halo, sigil, orbs
   noFusion?: boolean; // can't be used as a fusion parent
   description?: string;
 }
@@ -58,14 +62,14 @@ export interface ZoneDef {
   hpMult?: number;
   encounterRate?: number;
   coins?: [number, number];
-  encounters?: { monster: string; weight: number; rare?: boolean }[];
+  encounters?: { monster: string; weight: number; rare?: boolean; tier?: number }[];
   loot?: { item: string; chance: number }[];
   groundColor: string;
   grassColor: string;
   tierColor: string;
 }
 
-export interface MapObject { type: string; x: number; y: number; id?: string; zone?: string }
+export interface MapObject { type: string; x: number; y: number; id?: string; zone?: string; quest?: string }
 export interface MapDef {
   width: number;
   height: number;
@@ -76,20 +80,21 @@ export interface MapDef {
 }
 
 export interface QuestObjective {
-  kind: 'defeat' | 'catch' | 'level';
+  kind: 'defeat' | 'catch' | 'level' | 'tier' | 'trainers' | 'fuse';
   count: number;
   label: string;
   zone?: string;
   species?: string;
   type?: TypeId;
   level?: number;
+  tier?: number;
 }
 export interface QuestRewards {
   coins?: number;
   items?: Record<string, number>;
   rareLuck?: number;
   monster?: { species: string; level: number };
-  uniqueEncounter?: { monster: string; level: number; zone: string };
+  uniqueEncounter?: { monster: string; level: number; zone: string; tier?: number };
 }
 export interface QuestDef {
   id: string;
@@ -142,17 +147,62 @@ export interface TrainerDef {
   color: string;
   facing: 'up' | 'down' | 'left' | 'right';
   sight: number; // tiles they can see in the facing direction
+  elite?: boolean; // the final challenge: beating them wins the run
+  matchLevel?: number; // the team shifts up so its lowest level is at least the challenger's strongest monster level + this (capped by tier)
   intro: string;
   defeat: string;
-  team: { monster: string; level: number }[];
+  team: { monster: string; level: number; tier?: number }[];
   rewards: { coins: number; items: Record<string, number> };
 }
 
 export interface FusionsFile {
-  minLevel: number;
-  costFormula: string;  // variables: level (of the result)
+  costFormula: string;  // variables: level and tier (of the result)
   levelFormula: string; // variables: a, b (parent levels)
-  recipes: { types: [string, string]; result: string }[];
+  recipes: { types: [string, string]; result: string }[];   // fusing into ★2
+  /** Fusing into these tiers always creates a new species, chosen by the parents' type pair. */
+  tierRecipes?: Record<string, { types: [string, string]; result: string }[]>;
+}
+
+export interface TiersFile {
+  names: string[];      // index = tier - 1
+  colors: string[];
+  statMult: number[];   // stat multiplier per tier
+  fuseLevel: number[];  // fuseLevel[t-1] = level both tier-t parents need to fuse into tier t+1
+  maxLevel: number[];   // level cap per tier: fuse to go higher
+  moves: Record<string, Record<string, string[]>>; // tier -> type -> abilities granted at that tier
+}
+
+export interface AugmentDef {
+  id: string;
+  name: string;
+  icon: string;
+  rarity: string;
+  description: string;
+  mods?: Record<string, number>;
+  grant?: { items?: Record<string, number>; coins?: number; rareLuck?: number };
+}
+export interface GymDef {
+  id: string;
+  name: string;
+  type: TypeId;     // the gym's speciality; its badge boosts moves of this type
+  leader: string;   // trainer id; beating them earns the badge
+  badge: string;
+  icon: string;
+  color: string;
+  zone: string;
+}
+export interface GymsFile {
+  badgeBonus: number;              // extra damage for moves of each badge's type
+  championNeedsAllBadges: boolean; // the elite trainer only accepts challengers holding every badge
+  gyms: GymDef[];
+}
+
+export interface AugmentsFile {
+  rarities: Record<string, { name: string; color: string }>;
+  rarityWeights: Record<string, number>[]; // per boss (index), rarity -> weight
+  rerollsPerOffer: number;
+  optionsPerOffer: number;
+  augments: AugmentDef[];
 }
 
 export interface ConfigFile {
@@ -174,6 +224,9 @@ export interface ConfigFile {
     critMult: number;
     maxKnownAbilities: number;
     trainerXpMult: number;
+    healDecay: number; // each healing ability multiplies further healing on that monster by this
+    potionsPerFight: number; // healing items (Potion, Super Potion) each player may use per fight
+    eliteMaxActive?: number; // the elite trainer fields this many monsters at once (one per challenger)
   };
   boss: {
     intervalSeconds: number;
@@ -181,10 +234,13 @@ export interface ConfigFile {
     hpFormula: string;
     targetsFormula: string;
     timeLimitSeconds: number;
-    bossesToWin: number;
+    empowerHpPerLoop: number;  // bosses come back stronger after each full cycle
+    empowerAtkPerLoop: number;
     victoryResetSeconds: number;
+    rejoinLockoutSeconds: number; // after being wiped in a boss fight, the portal stays closed to you this long
   };
   progression: { xpToNextFormula: string; xpYieldFormula: string; catchFormula: string; maxLevel: number };
+  duel: { delaySeconds: number; winnerCoins: number; loserCoins: number }; // 1v1 after every boss fight
   party: { maxSize: number };
   start: { coins: number; items: Record<string, number>; starterLevel: number; starters: string[] };
 }
@@ -202,6 +258,9 @@ export interface GameData {
   bosses: BossDef[];
   trainers: Record<string, TrainerDef>;
   fusions: FusionsFile;
+  tiers: TiersFile;
+  augments: AugmentsFile;
+  gyms: GymsFile;
 }
 
 // ---------------------------------------------------------------- protocol
@@ -211,7 +270,9 @@ export interface MonsterView {
   species: string;
   name: string;
   type: TypeId;
+  tier: number;
   level: number;
+  maxLevel: number; // cap for its tier
   xp: number;
   xpToNext: number;
   hp: number;
@@ -238,9 +299,12 @@ export interface SelfState {
   down: boolean;
   respawnAt: number; // server ms timestamp, see serverNow in world
   needsStarter: boolean;
-  uniqueEncounter: { monster: string; level: number; zone: string } | null;
+  uniqueEncounter: { monster: string; level: number; zone: string; tier?: number } | null;
   inBattle: string | null;
   defeatedTrainers: string[];
+  augments: string[];
+  augmentOffer: { options: string[]; rerolls: number; rarity: string; queued: number } | null;
+  bossLockUntil: number; // server ms: when you may rejoin a boss fight through the portal
 }
 
 export interface WorldPlayer {
@@ -251,6 +315,8 @@ export interface WorldPlayer {
   color: string;
   state: 'free' | 'battle' | 'down';
   connected: boolean;
+  lead: string | null; // species of the lead monster (map follower)
+  leadTier: number;
 }
 export interface WorldBattle { id: string; x: number; y: number; kind: BattleKind; count: number; joinable: boolean }
 export interface BossClock {
@@ -259,7 +325,7 @@ export interface BossClock {
   bossIndex: number;
   bossName: string;
   bossesDefeated: number;
-  bossesToWin: number;
+  loop: number; // completed boss cycles: bosses are empowered each loop
 }
 export interface WorldState {
   serverNow: number;
@@ -269,7 +335,7 @@ export interface WorldState {
   connected: number;
 }
 
-export type BattleKind = 'wild' | 'boss' | 'unique' | 'trainer';
+export type BattleKind = 'wild' | 'boss' | 'unique' | 'trainer' | 'duel';
 
 /** One HP change in a round, for floating damage numbers. target = enemy id or player id. */
 export interface Hit {
@@ -288,9 +354,11 @@ export interface EnemyView {
   isBoss: boolean;
   type: TypeId;
   level: number;
+  tier: number;
   hp: number;
   maxHp: number;
   fainted: boolean;
+  healMult: number; // < 1 once healing fatigue kicks in
 }
 export interface ParticipantView {
   playerId: string;
@@ -299,15 +367,18 @@ export interface ParticipantView {
   monsterName: string;
   species: string;
   level: number;
+  tier: number;
   hp: number;
   maxHp: number;
   chosen: boolean;
+  healMult: number;
   connected: boolean;
 }
 export interface BattleView {
   id: string;
   kind: BattleKind;
   zoneName: string;
+  zoneId: string;
   round: number;
   remainingMs: number;
   roundMs: number;
@@ -323,6 +394,7 @@ export interface BattleView {
     chosen: boolean;
     choiceLabel: string | null;
     defaultLabel: string;
+    potionsLeft: number;
   };
 }
 
@@ -348,7 +420,9 @@ export type ClientMsg =
   | { t: 'partyWithdraw'; uid: string }
   | { t: 'chat'; text: string }
   | { t: 'challenge'; id: string }
-  | { t: 'fuse'; a: string; b: string };
+  | { t: 'fuse'; a: string; b: string }
+  | { t: 'augmentPick'; id: string }
+  | { t: 'augmentReroll' };
 
 export type ToastKind = 'info' | 'good' | 'bad' | 'boss' | 'level';
 
@@ -364,4 +438,5 @@ export type ServerMsg =
   | { t: 'pos'; x: number; y: number; teleport?: boolean }
   | { t: 'toast'; text: string; kind: ToastKind }
   | { t: 'chat'; from: string; color: string; text: string }
-  | { t: 'victory'; resetIn: number };
+  | { t: 'victory'; resetIn: number; winners: string[]; champion: string }
+  | { t: 'evolved'; kind: 'evolve' | 'fusion'; from: string[]; to: string; tier: number; level: number };

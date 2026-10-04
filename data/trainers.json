@@ -3,42 +3,126 @@
     "name": "Youngster Pip", "color": "#e67e22", "facing": "right", "sight": 5,
     "intro": "Hey! You walked into my sight. That means we battle!",
     "defeat": "Aww... I need to train more.",
-    "team": [ { "monster": "puddlefin", "level": 2 }, { "monster": "pebblit", "level": 3 } ],
-    "rewards": { "coins": 60, "items": { "potion": 1 } }
+    "team": [ {"monster": "puddlefin", "level": 2}, {"monster": "pebblit", "level": 3} ],
+    "rewards": {"coins": 60, "items": {"potion": 1}}
   },
   "mira": {
     "name": "Lass Mira", "color": "#e84393", "facing": "left", "sight": 4,
     "intro": "My monsters are cute AND strong. Let me show you!",
     "defeat": "Okay, okay, yours are stronger.",
-    "team": [ { "monster": "pebblit", "level": 3 }, { "monster": "drizzlet", "level": 4 } ],
-    "rewards": { "coins": 80, "items": { "orb": 2 } }
+    "team": [ {"monster": "pebblit", "level": 3}, {"monster": "drizzlet", "level": 4} ],
+    "rewards": {"coins": 80, "items": {"orb": 2}}
   },
   "rook": {
     "name": "Bug Catcher Rook", "color": "#27ae60", "facing": "down", "sight": 3,
     "intro": "Shh! You'll scare the moths! ...Fine, battle me instead!",
     "defeat": "My moths fluttered off. Good battle.",
-    "team": [ { "monster": "fizzbit", "level": 7 }, { "monster": "fizzbit", "level": 8 }, { "monster": "zapling", "level": 9 } ],
-    "rewards": { "coins": 150, "items": { "great_orb": 1 } }
+    "team": [ {"monster": "fizzbit", "level": 7}, {"monster": "sparkit", "level": 8}, {"monster": "zapling", "level": 9} ],
+    "rewards": {"coins": 150, "items": {"great_orb": 1}}
   },
   "moss": {
     "name": "Hiker Moss", "color": "#8d6e63", "facing": "left", "sight": 3,
     "intro": "These rocks and I have walked a long way. Test yourself against us!",
     "defeat": "Solid as stone, you are.",
-    "team": [ { "monster": "cragmole", "level": 8 }, { "monster": "pebblit", "level": 10 } ],
-    "rewards": { "coins": 150, "items": { "potion": 2 } }
+    "team": [ {"monster": "cragmole", "level": 8}, {"monster": "pebblit", "level": 10} ],
+    "rewards": {"coins": 150, "items": {"potion": 2}}
   },
   "gil": {
     "name": "Fisher Gil", "color": "#2980b9", "facing": "down", "sight": 3,
     "intro": "Nothing's biting today. Maybe you will!",
     "defeat": "Reeled in by a better angler...",
-    "team": [ { "monster": "puddlefin", "level": 11 }, { "monster": "drizzlet", "level": 12 }, { "monster": "torrentoad", "level": 14 } ],
-    "rewards": { "coins": 250, "items": { "super_potion": 1, "revive": 1 } }
+    "team": [ {"monster": "bubbloon", "level": 11}, {"monster": "slushpup", "level": 12}, {"monster": "thunderhawk", "level": 14} ],
+    "rewards": {"coins": 250, "items": {"super_potion": 1, "revive": 1}}
   },
   "vera": {
     "name": "Ace Trainer Vera", "color": "#c0392b", "facing": "left", "sight": 3,
     "intro": "Few make it this deep into the cave. Bring your friends, you'll need them.",
     "defeat": "Impressive. You might actually survive the bosses.",
-    "team": [ { "monster": "voltail", "level": 17 }, { "monster": "bouldurr", "level": 18 }, { "monster": "glimmoth", "level": 19 } ],
-    "rewards": { "coins": 400, "items": { "prism_orb": 1, "super_potion": 2 } }
+    "team": [ {"monster": "voltail", "level": 17}, {"monster": "bouldurr", "level": 18}, {"monster": "glimmoth", "level": 19, "tier": 2} ],
+    "rewards": {"coins": 400, "items": {"prism_orb": 1, "super_potion": 2}}
+  },
+  "dell": {
+    "name": "Rancher Dell", "color": "#d35400", "facing": "down", "sight": 3,
+    "intro": "Out here on the steppe, the wind decides who wins. Let's see whose side it's on!",
+    "defeat": "Blown away. Fair and square.",
+    "team": [ {"monster": "torrentoad", "level": 14}, {"monster": "bouldurr", "level": 15}, {"monster": "stormfin", "level": 16, "tier": 2} ],
+    "rewards": {"coins": 300, "items": {"great_orb": 2}}
+  },
+  "sol": {
+    "name": "Climber Sol", "color": "#f1c40f", "facing": "left", "sight": 3,
+    "intro": "I climbed all the way up here for a worthy rival. Is that you?",
+    "defeat": "The summit belongs to you today.",
+    "team": [ {"monster": "geckrag", "level": 19, "tier": 2}, {"monster": "thundrake", "level": 21, "tier": 2} ],
+    "rewards": {"coins": 400, "items": {"super_potion": 2, "revive": 1}}
+  },
+  "nim": {
+    "name": "Archaeologist Nim", "color": "#16a085", "facing": "down", "sight": 4,
+    "intro": "These ruins hide ancient fusions. Mine are the oldest of all!",
+    "defeat": "Fascinating... you rewrote history.",
+    "team": [ {"monster": "medusurge", "level": 21, "tier": 2}, {"monster": "golemar", "level": 22, "tier": 2}, {"monster": "abyssqual", "level": 23, "tier": 3} ],
+    "rewards": {"coins": 500, "items": {"prism_orb": 1, "super_potion": 2}}
+  },
+  "kael": {
+    "name": "Dragon Tamer Kael", "color": "#8e1b1b", "facing": "left", "sight": 4,
+    "intro": "Nothing survives the Wastes unless it is fused for fire and fury. Prove you belong!",
+    "defeat": "You... you have the heart of a tamer.",
+    "team": [ {"monster": "flintfang", "level": 25, "tier": 2}, {"monster": "golemar", "level": 26, "tier": 3}, {"monster": "thundrake", "level": 28, "tier": 3} ],
+    "rewards": {"coins": 700, "items": {"prism_orb": 2, "revive": 2}}
+  },
+  "aurelia": {
+    "name": "Champion Aurelia", "color": "#f1c40f", "facing": "down", "sight": 0, "elite": true, "matchLevel": -3,
+    "intro": "So you earned every badge and made it to my throne. My six legendaries answer to no one: one of them will face each of you, and they grow stronger with every challenger. Show me everything you have!",
+    "defeat": "Magnificent... The land is yours to protect now, Champion.",
+    "team": [ {"monster": "atlantaeus", "level": 42, "tier": 5}, {"monster": "typhonova", "level": 42, "tier": 5}, {"monster": "omnicolos", "level": 43, "tier": 5}, {"monster": "orogrand", "level": 43, "tier": 5}, {"monster": "oceanarch", "level": 45, "tier": 5}, {"monster": "zenivolt", "level": 46, "tier": 5} ],
+    "rewards": { "coins": 3000, "items": {} }
+  },
+  "tess": {
+    "name": "Gym Trainer Tess", "color": "#a0785a", "facing": "up", "sight": 5,
+    "intro": "Nobody reaches Leader Brannoc without getting past me!",
+    "defeat": "Hmph. Brannoc won't crumble that easily.",
+    "team": [ {"monster": "cragmole", "level": 10}, {"monster": "bouldurr", "level": 11, "tier": 2} ],
+    "rewards": {"coins": 150, "items": {"potion": 1}}
+  },
+  "brannoc": {
+    "name": "Leader Brannoc", "color": "#8d6e63", "facing": "right", "sight": 0,
+    "intro": "I am Brannoc, the Stonehold Gym Leader! My monsters are as hard as the bedrock under your feet. Bring your friends, if you like!",
+    "defeat": "You cracked the bedrock! Take the Bedrock Badge, your Stone moves hit harder now.",
+    "team": [ {"monster": "bouldurr", "level": 12, "tier": 2}, {"monster": "drillord", "level": 13, "tier": 2}, {"monster": "golemar", "level": 14, "tier": 2} ],
+    "rewards": {"coins": 500, "items": {"super_potion": 2}}
+  },
+  "watt": {
+    "name": "Engineer Watt", "color": "#d4ac0d", "facing": "down", "sight": 4,
+    "intro": "Bzzt! Unauthorized visitor! Initiating battle protocol!",
+    "defeat": "Short-circuited... go on, the Leader's waiting.",
+    "team": [ {"monster": "sparkit", "level": 18, "tier": 2}, {"monster": "voltail", "level": 19, "tier": 2}, {"monster": "voltgeode", "level": 20, "tier": 2} ],
+    "rewards": {"coins": 300, "items": {"super_potion": 1}}
+  },
+  "zara": {
+    "name": "Leader Zara", "color": "#f39c12", "facing": "left", "sight": 0,
+    "intro": "Welcome to the Voltage Gym! I'm Zara, and my storm never stops. Think you can keep up?",
+    "defeat": "What a shock! You've earned the Surge Badge, your Spark moves will crackle harder.",
+    "team": [ {"monster": "thunderhawk", "level": 20, "tier": 2}, {"monster": "voltgeode", "level": 21, "tier": 2}, {"monster": "dynalith", "level": 22, "tier": 3}, {"monster": "fulgurion", "level": 23, "tier": 3} ],
+    "rewards": {"coins": 900, "items": {"super_potion": 2, "revive": 1}}
+  },
+  "coral": {
+    "name": "Swimmer Coral", "color": "#48c9b0", "facing": "right", "sight": 6,
+    "intro": "Splash! You'll have to swim through me first!",
+    "defeat": "Washed out... the Leader's tide is way stronger than mine.",
+    "team": [ {"monster": "torrentoad", "level": 23, "tier": 2}, {"monster": "abyssqual", "level": 24, "tier": 3} ],
+    "rewards": {"coins": 350, "items": {"super_potion": 1}}
+  },
+  "reef": {
+    "name": "Diver Reef", "color": "#1f618d", "facing": "left", "sight": 6,
+    "intro": "I've been holding my breath waiting for a challenger!",
+    "defeat": "Gasp! Okay, okay, you can pass.",
+    "team": [ {"monster": "mirelurk", "level": 24, "tier": 3}, {"monster": "stormfin", "level": 25, "tier": 3} ],
+    "rewards": {"coins": 350, "items": {"revive": 1}}
+  },
+  "marina": {
+    "name": "Leader Marina", "color": "#2471a3", "facing": "up", "sight": 0,
+    "intro": "The ruins sank, but my gym never did. I am Marina, and the tide answers to me!",
+    "defeat": "The tide has turned... The Riptide Badge is yours. Now go face the Champion!",
+    "team": [ {"monster": "medusurge", "level": 26, "tier": 3}, {"monster": "trenchmaw", "level": 27, "tier": 3}, {"monster": "abyssion", "level": 28, "tier": 3}, {"monster": "thalassor", "level": 30, "tier": 4} ],
+    "rewards": {"coins": 1500, "items": {"prism_orb": 1, "revive": 2}}
   }
 }

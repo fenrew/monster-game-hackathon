@@ -45,12 +45,26 @@ class Store {
 
 export const store = new Store();
 
-/** Portrait for a monster species or a boss id. */
-export function portraitFor(species: string, size = 64): string {
+/** Portrait for a monster species (with its tier aura) or a boss id. */
+export function portraitFor(species: string, size = 64, tier = 1, animate = size >= 56): string {
   const m = store.data.monsters[species];
-  if (m) return portraitSVG(m.shape, m.color, size);
+  if (m) {
+    const aura = tier > 1 ? { tier, color: store.data.tiers.colors[tier - 1] ?? '#ffffff' } : undefined;
+    return portraitSVG(species, m.color, size, aura, m.shape, m.art, m.flair, animate);
+  }
   const b = store.data.bosses.find((b) => b.id === species);
   return b ? portraitSVG(b.shape, b.color, size) : portraitSVG('rock', '#888888', size);
+}
+
+/** ★★★ in the tier's colour. */
+export function tierBadge(tier: number): HTMLElement {
+  const t = Math.max(1, tier || 1);
+  const el = document.createElement('span');
+  el.className = `tier t${t}`;
+  el.textContent = '★'.repeat(t);
+  el.title = `Tier ${t}: ${store.data.tiers.names[t - 1] ?? ''}`;
+  el.style.color = store.data.tiers.colors[t - 1] ?? '#fff';
+  return el;
 }
 
 export function typeChip(type: string): HTMLElement {

@@ -1,4 +1,6 @@
 import { initBattleUI } from './battleui';
+import { initAugmentUI } from './augmentui';
+import { initEvolveUI } from './evolveui';
 import { $ } from './dom';
 import { initHud, toast } from './hud';
 import { closeModal, hideJoin, initMenus, openHelp, showJoin } from './menus';
@@ -23,6 +25,7 @@ function startGame() {
   if (gameStarted) return;
   gameStarted = true;
   initHud();
+  initAugmentUI();
   createGame('game');
   let seen = false;
   try { seen = !!localStorage.getItem('stb-help-seen'); localStorage.setItem('stb-help-seen', '1'); } catch { /* ignore */ }
@@ -41,6 +44,7 @@ net.onMessage = (msg) => {
         uiReady = true;
         initMenus();
         initBattleUI();
+        initEvolveUI();
       }
       if (!net.hasToken && !gameStarted) setJoin('join');
       break;
@@ -88,8 +92,11 @@ net.onMessage = (msg) => {
     case 'chat':
       store.emit('chat', msg.from, msg.color, msg.text);
       break;
+    case 'evolved':
+      store.emit('evolved', msg);
+      break;
     case 'victory':
-      store.emit('victory', msg.resetIn);
+      store.emit('victory', msg.resetIn, msg.winners, msg.champion);
       break;
   }
 };

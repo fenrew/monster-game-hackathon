@@ -1,0 +1,13 @@
+{
+  "names": ["Common", "Uncommon", "Rare", "Epic", "Legendary"],
+  "colors": ["#b8c0c8", "#4cd17a", "#4aa3ff", "#b36bff", "#ffc23d"],
+  "statMult": [1, 1.35, 1.8, 2.4, 3.2],
+  "maxLevel": [10, 20, 30, 40, 50],
+  "fuseLevel": [7, 10, 13, 16],
+  "moves": {
+    "2": { "spark": ["thunder_fang"], "stone": ["boulder_slam"], "tide": ["tidal_lash"] },
+    "3": { "spark": ["static_burst", "bulwark"], "stone": ["rockslide", "bulwark"], "tide": ["undertow", "bulwark"] },
+    "4": { "spark": ["overvolt", "rally"], "stone": ["tectonic", "rally"], "tide": ["maelstrom", "soothing_rain"] },
+    "5": { "spark": ["thunder_crown"], "stone": ["mountain_fall"], "tide": ["tsunami"] }
+  }
+}

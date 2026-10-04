@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type {
-  AbilityDef, BossDef, ConfigFile, GameData, ItemDef, FusionsFile, MapDef, MonsterDef, QuestsFile, TrainerDef, TypeDef, ZoneDef,
+  AbilityDef, BossDef, GymsFile, ConfigFile, GameData, ItemDef, AugmentsFile, FusionsFile, MapDef, MonsterDef, QuestsFile, TiersFile, TrainerDef, TypeDef, ZoneDef,
 } from '../shared/types';
 import { WorldMap } from '../shared/map';
 
@@ -38,6 +38,9 @@ export const data: GameData = {
   bosses: load<BossDef[]>('bosses.json'),
   trainers: load<Record<string, TrainerDef>>('trainers.json'),
   fusions: load<FusionsFile>('fusions.json'),
+  tiers: load<TiersFile>('tiers.json'),
+  augments: load<AugmentsFile>('augments.json'),
+  gyms: load<GymsFile>('gyms.json'),
 };
 
 export const cfg = data.config;
@@ -68,6 +71,7 @@ export function validateData(): string[] {
     for (const l of m.learnset) need(abilities[l.ability], `monster ${id}: unknown ability ${l.ability}`);
     if (m.evolvesTo) need(monsters[m.evolvesTo], `monster ${id}: evolvesTo unknown ${m.evolvesTo}`);
     if (m.evolvesTo) need(m.evolveLevel, `monster ${id}: evolvesTo without evolveLevel`);
+    if (m.art) need(monsters[m.art], `monster ${id}: art refers to unknown species ${m.art}`);
   }
   for (const [id, a] of Object.entries(abilities)) need(types[a.type], `ability ${id}: unknown type ${a.type}`);
   for (const z of zones) {
@@ -91,7 +95,8 @@ export function validateData(): string[] {
     for (const r of b.rotation) need(b.moves[r], `boss ${b.id}: rotation uses unknown move ${r}`);
     for (const p of b.phases) for (const r of p.rotation ?? []) need(b.moves[r], `boss ${b.id}: phase uses unknown move ${r}`);
   }
-  need(bosses.length >= data.config.boss.bossesToWin, `bosses.json has fewer bosses than bossesToWin`);
+  need(bosses.length >= 1, 'bosses.json needs at least one boss');
+  need(Object.values(data.trainers).filter((t) => t.elite).length === 1, 'trainers.json needs exactly one elite trainer (the win condition)');
   need(map.rows.length === map.height && map.rows.every((r) => r.length === map.width), 'map.json: rows do not match width/height');
   const typeIds = Object.keys(types).filter((t) => t !== 'neutral');
   for (let i = 0; i < typeIds.length; i++) for (let j = i; j < typeIds.length; j++) {
@@ -99,7 +104,39 @@ export function validateData(): string[] {
     need(data.fusions.recipes.some((r) => [...r.types].sort().join('+') === key), `fusions.json: no recipe for ${key}`);
   }
   for (const r of data.fusions.recipes) need(monsters[r.result], `fusions.json: unknown result ${r.result}`);
+  for (const [tier, list] of Object.entries(data.fusions.tierRecipes ?? {})) {
+    for (const r of list) need(monsters[r.result], `fusions.json: tier ${tier} unknown result ${r.result}`);
+    for (let i = 0; i < typeIds.length; i++) for (let j = i; j < typeIds.length; j++) {
+      const key = [typeIds[i], typeIds[j]].sort().join('+');
+      need(list.some((r) => [...r.types].sort().join('+') === key), `fusions.json: tier ${tier} has no recipe for ${key}`);
+    }
+  }
   need(map.objects.some((o) => o.type === 'fusion'), 'map: missing fusion object');
+  const T = data.tiers;
+  need(T.statMult.length >= 1 && T.names.length === T.statMult.length && T.colors.length === T.statMult.length, 'tiers.json: names/colors/statMult lengths differ');
+  need(T.fuseLevel.length === T.statMult.length - 1, 'tiers.json: fuseLevel needs one entry per tier except the last');
+  need(T.maxLevel.length === T.statMult.length, 'tiers.json: maxLevel needs one entry per tier');
+  T.fuseLevel.forEach((lv, i) => need(lv <= T.maxLevel[i], `tiers.json: tier ${i + 1} must be able to reach its fuse level (${lv} > cap ${T.maxLevel[i]})`));
+  for (const [tier, byType] of Object.entries(T.moves)) for (const list of Object.values(byType)) {
+    for (const a of list) need(abilities[a], `tiers.json: tier ${tier} grants unknown ability ${a}`);
+  }
+  const maxT = T.statMult.length;
+  for (const z of zones) for (const e of z.encounters ?? []) need(!e.tier || (e.tier >= 1 && e.tier <= maxT), `zone ${z.id}: bad tier ${e.tier}`);
+  for (const [id, t] of Object.entries(data.trainers)) for (const m of t.team) need(!m.tier || (m.tier >= 1 && m.tier <= maxT), `trainer ${id}: bad tier`);
+  const AUG = data.augments;
+  const augIds = new Set<string>();
+  for (const a of AUG.augments) {
+    need(!augIds.has(a.id), `augments.json: duplicate id ${a.id}`);
+    augIds.add(a.id);
+    need(AUG.rarities[a.rarity], `augment ${a.id}: unknown rarity ${a.rarity}`);
+    need(a.mods || a.grant, `augment ${a.id}: needs mods or a grant`);
+    for (const it of Object.keys(a.grant?.items ?? {})) need(items[it], `augment ${a.id}: unknown item ${it}`);
+  }
+  for (const r of Object.keys(AUG.rarities)) {
+    need(AUG.augments.filter((a) => a.rarity === r).length >= AUG.optionsPerOffer, `augments.json: rarity ${r} needs at least ${AUG.optionsPerOffer} augments`);
+  }
+  const questIdsAll = new Set(quests.quests.map((q) => q.id));
+  for (const o of map.objects) if (o.type === 'gate') need(o.quest && questIdsAll.has(o.quest), `map: gate at ${o.x},${o.y} needs a known quest`);
   for (const [id, t] of Object.entries(data.trainers)) {
     need(t.team.length > 0, `trainer ${id}: empty team`);
     for (const m of t.team) need(monsters[m.monster], `trainer ${id}: unknown monster ${m.monster}`);
@@ -107,6 +144,14 @@ export function validateData(): string[] {
     need(['up', 'down', 'left', 'right'].includes(t.facing), `trainer ${id}: bad facing ${t.facing}`);
     need(map.objects.some((o) => o.type === 'trainer' && o.id === id), `trainer ${id}: not placed on the map`);
   }
+  for (const g of data.gyms.gyms) {
+    const t = data.trainers[g.leader];
+    need(t, `gym ${g.id}: unknown leader ${g.leader}`);
+    need(!t?.elite, `gym ${g.id}: the leader can't be the elite trainer`);
+    need(types[g.type], `gym ${g.id}: unknown type ${g.type}`);
+    need(zones.some((z) => z.id === g.zone), `gym ${g.id}: unknown zone ${g.zone}`);
+  }
+  need(new Set(data.gyms.gyms.map((g) => g.leader)).size === data.gyms.gyms.length, 'gyms.json: two gyms share a leader');
   for (const o of map.objects) {
     if (o.type === 'trainer') need(data.trainers[o.id!], `map: unknown trainer ${o.id}`);
     if (o.type === 'npc') need(quests.npcs[o.id!], `map: unknown npc ${o.id}`);

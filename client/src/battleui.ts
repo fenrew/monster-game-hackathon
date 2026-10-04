@@ -1,7 +1,7 @@
 import type { BattleAction, BattleView, EnemyView, Hit, ParticipantView } from '../../shared/types';
-import { $, bar, clear, h } from './dom';
+import { $, bar, clear, h, isTyping, releaseFocus } from './dom';
 import { net } from './net';
-import { portraitFor, store, typeChip } from './state';
+import { portraitFor, store, tierBadge, typeChip } from './state';
 
 type Tab = 'fight' | 'bag' | 'swap';
 let tab: Tab = 'fight';
@@ -11,6 +11,15 @@ const prevHp = new Map<string, number>();
 let summaryOpen = false;
 let lastHitsKey = ''; // battle id + round whose hits we already showed
 let summaryTimer = 0;
+let summaryPending = false; // knockout numbers playing, summary about to appear
+/** Every round's log lines for the current fight, so the log can be scrolled back through. */
+let logHistory: { label: string; lines: string[] }[] = [];
+let loggedRound = -1;
+
+/** True while a fight, its knockout animation or its summary is on screen. */
+export function battleScreenBusy() {
+  return !!store.battle || summaryOpen || summaryPending;
+}
 
 export function initBattleUI() {
   store.on('battle', render);
@@ -21,9 +30,12 @@ export function initBattleUI() {
   };
   requestAnimationFrame(loop);
   window.addEventListener('keydown', (e) => {
-    if (document.activeElement instanceof HTMLInputElement) return;
+    if (isTyping()) return;
     if (summaryOpen && ['Enter', ' ', 'Escape', 'e', 'E'].includes(e.key)) {
+      // Consume the key: otherwise the HUD also sees it and Enter would jump focus into the chat box,
+      // leaving movement keys typed into chat until the player sent a message.
       e.preventDefault();
+      e.stopImmediatePropagation();
       closeSummary();
       return;
     }
@@ -75,15 +87,32 @@ function render() {
     tab = 'fight';
     selectedTarget = null;
     prevHp.clear();
+    logHistory = [];
+    loggedRound = -1;
   }
+  if (b.round !== loggedRound) {
+    loggedRound = b.round;
+    if (b.log.length) logHistory.push({ label: b.round <= 1 ? 'Start' : `Round ${b.round - 1}`, lines: [...b.log] });
+  }
+  // keep the reader's place in the log across re-renders (or stick to the bottom if they were there)
+  const oldLog = el.querySelector<HTMLElement>('.b-log');
+  const stick = !oldLog || oldLog.scrollHeight - oldLog.scrollTop - oldLog.clientHeight < 24;
+  const oldTop = oldLog?.scrollTop ?? 0;
   summaryOpen = false;
   store.modalOpen = false;
   el.hidden = false;
   el.classList.toggle('boss', b.kind === 'boss');
+  el.classList.toggle('duel', b.kind === 'duel');
+  const zone = store.data.zones.find((z) => z.id === b.zoneId);
+  if (zone) {
+    el.style.setProperty('--zg', zone.groundColor);
+    el.style.setProperty('--zgrass', zone.grassColor);
+    el.style.setProperty('--ztier', zone.tierColor);
+  }
   clear(el);
   targetFor(b);
 
-  const kindLabel = b.kind === 'boss' ? '☠ BOSS FIGHT' : b.kind === 'unique' ? '✦ Unique encounter'
+  const kindLabel = b.kind === 'boss' ? '☠ BOSS FIGHT' : b.kind === 'duel' ? '⚔ DUEL' : b.kind === 'unique' ? '✦ Unique encounter'
     : b.kind === 'trainer' ? '❗ Trainer battle' : 'Wild battle';
   el.append(
     h('div', { class: 'b-head' },
@@ -104,10 +133,13 @@ function render() {
     h('div', { class: 'b-enemies' }, ...b.enemies.map((e) => enemyCard(b, e))),
     alliesRow(b),
     youPanel(b),
-    h('div', { class: 'b-log' }, ...(b.log.length ? b.log : ['The fight begins! Choose an action.']).map((l) => h('div', { class: logClass(l) }, l))),
+    logPanel(logHistory.length ? logHistory : [{ label: 'Start', lines: ['The fight begins! Choose an action.'] }]),
   );
+  const newLog = el.querySelector<HTMLElement>('.b-log');
+  if (newLog) newLog.scrollTop = stick ? newLog.scrollHeight : oldTop;
   for (const e of b.enemies) prevHp.set(e.id, e.hp);
   for (const p of b.participants) prevHp.set(p.playerId, p.hp);
+  el.style.setProperty('--bob-phase', `-${(performance.now() % 2600) / 1000}s`);
   updateTimer();
   // Views are re-sent whenever someone picks an action; only animate each round's hits once.
   const key = `${b.id}:${b.round}`;
@@ -153,6 +185,13 @@ function spawnHits(hits: Hit[]) {
     // Play the round in order (who acted, then what it did), capped so big fights stay snappy.
     const delay = hitDelay(i);
     f.style.animationDelay = `${delay}ms`;
+    if (callout) {
+      setTimeout(() => {
+        el.classList.remove('act');
+        void el.offsetWidth;
+        el.classList.add('act');
+      }, delay);
+    }
     layer!.append(f);
     setTimeout(() => f.remove(), 1800 + delay);
   });
@@ -171,6 +210,17 @@ function catchChance(e: EnemyView, orbMult: number): number {
   return Math.max(0, Math.min(1, isFinite(c) ? c : 0));
 }
 
+/** Shows how much healing still lands once healing fatigue has kicked in. */
+function fatigue(mult: number | undefined) {
+  if (mult === undefined || mult >= 0.999) return null;
+  return h('span', { class: 'fatigue', title: 'Healing fatigue: healing on this monster is reduced for the rest of the fight' }, ` 🩹${Math.round(mult * 100)}%`);
+}
+
+function logPanel(sections: { label: string; lines: string[] }[], tall = false): HTMLElement {
+  return h('div', { class: `b-log${tall ? ' tall' : ''}`, title: 'Scroll to see earlier rounds' },
+    ...sections.flatMap((s) => [h('div', { class: 'lr' }, s.label), ...s.lines.map((l) => h('div', { class: logClass(l) }, l))]));
+}
+
 function logClass(line: string) {
   if (line.startsWith('⚠')) return 'll warn';
   if (/^Wild .*fainted|and it fainted/.test(line)) return 'll good';
@@ -179,22 +229,27 @@ function logClass(line: string) {
   return 'll';
 }
 
+/** High-tier monsters get a glowing frame in their tier colour (★5 shimmers). */
+const tierClass = (tier: number) => (tier >= 3 ? ` tier${Math.min(5, tier)}` : '');
+const tierStyle = (tier: number) => (tier >= 3 ? `--tc:${store.data.tiers.colors[tier - 1] ?? '#fff'}` : '');
+
 function enemyCard(b: BattleView, e: EnemyView): HTMLElement {
   const multi = b.enemies.filter((x) => !x.fainted).length > 1;
   const sel = multi && e.id === selectedTarget && !e.fainted;
   const hit = (prevHp.get(e.id) ?? e.hp) > e.hp;
   const size = e.isBoss ? 150 : 84;
   return h('div', {
-    class: `ecard${e.isBoss ? ' bosscard' : ''}${e.fainted ? ' fainted' : ''}${sel ? ' sel' : ''}${hit ? ' hit' : ''}${multi && !e.fainted ? ' clickable' : ''}`,
+    class: `ecard${e.isBoss ? ' bosscard' : tierClass(e.tier)}${e.fainted ? ' fainted' : ''}${sel ? ' sel' : ''}${hit ? ' hit' : ''}${multi && !e.fainted ? ' clickable' : ''}`,
     'data-hit': e.id,
+    style: e.isBoss ? '' : tierStyle(e.tier),
     onclick: () => { if (!e.fainted) { selectedTarget = e.id; render(); } },
     title: multi ? 'Click to target' : '',
   },
-    h('div', { class: 'pic', html: portraitFor(e.species, size) }),
+    h('div', { class: 'pic', html: portraitFor(e.species, size, e.isBoss ? 1 : e.tier) }),
     h('div', { class: 'ename' }, e.name, ' ', h('span', { class: 'lv' }, `Lv ${e.level}`)),
-    typeChip(e.type),
+    h('div', { class: 'chips' }, e.isBoss ? null : tierBadge(e.tier), typeChip(e.type)),
     bar(e.hp, e.maxHp),
-    h('div', { class: 'num' }, e.fainted ? 'Fainted' : `${e.hp} / ${e.maxHp}`),
+    h('div', { class: 'num' }, e.fainted ? 'Fainted' : `${e.hp} / ${e.maxHp}`, fatigue(e.healMult)),
     sel ? h('div', { class: 'target-tag' }, '🎯 target') : null);
 }
 
@@ -210,7 +265,7 @@ function youPanel(b: BattleView): HTMLElement {
 
   const tabs = h('div', { class: 'tabs' },
     tabBtn('fight', 'Fight'), tabBtn('bag', 'Bag'), tabBtn('swap', 'Swap'),
-    b.kind !== 'boss' && b.kind !== 'trainer' ? h('button', { class: 'flee', onclick: () => choose({ kind: 'flee' }) }, 'Flee') : null);
+    b.kind !== 'boss' && b.kind !== 'trainer' && b.kind !== 'duel' ? h('button', { class: 'flee', onclick: () => choose({ kind: 'flee' }) }, 'Flee') : null);
   panel.append(tabs);
 
   const actions = h('div', { class: 'b-actions' });
@@ -219,7 +274,7 @@ function youPanel(b: BattleView): HTMLElement {
       const ab = store.data.abilities[id];
       const t = store.data.types[ab.type];
       const info = ab.power > 0
-        ? `${ab.power} pow · ${Math.round(ab.accuracy * 100)}%${ab.target === 'allEnemies' ? ' · all foes' : ''}`
+        ? `${ab.power} pow · ${Math.round(ab.accuracy * 100)}%${ab.target === 'allEnemies' ? ' · all foes' : ''}${ab.drain ? ' · drain' : ''}${ab.recoil ? ' · recoil' : ''}${ab.priority ? ' · first' : ''}`
         : ab.target === 'team' ? 'team' : ab.target === 'self' ? 'self' : 'status';
       actions.append(h('button', {
         class: 'abtn', style: `border-left-color:${t.color}`, title: ab.description ?? '',
@@ -233,14 +288,15 @@ function youPanel(b: BattleView): HTMLElement {
     for (const [id, n] of items) {
       const it = store.data.items[id];
       if (it.kind === 'orb') {
-        if (b.kind === 'boss' || b.kind === 'trainer' || !target) continue;
+        if (b.kind === 'boss' || b.kind === 'trainer' || b.kind === 'duel' || !target) continue;
         actions.append(h('button', { class: 'abtn', onclick: () => choose({ kind: 'item', itemId: id, targetId: target.id }) },
           h('b', null, `${it.name} ×${n}`),
           h('span', { class: 'abinfo' }, `throw at ${target.name} · `, h('b', { class: 'chance' }, `${Math.round(catchChance(target, it.catchMult ?? 1) * 100)}% chance`))));
       } else if (it.kind === 'heal') {
-        actions.append(h('button', { class: 'abtn', onclick: () => choose({ kind: 'item', itemId: id }) },
-          h('b', null, `${it.name} ×${n}`), h('span', { class: 'abinfo' }, `heal ${active.name}`)));
-      } else if (it.kind === 'revive') {
+        const left = b.you.potionsLeft;
+        actions.append(h('button', { class: 'abtn', disabled: left <= 0, title: `Up to ${store.data.config.combat.potionsPerFight} potions per fight`, onclick: () => choose({ kind: 'item', itemId: id }) },
+          h('b', null, `${it.name} ×${n}`), h('span', { class: 'abinfo' }, left > 0 ? `heal ${active.name} · ${left} left this fight` : 'no potions left this fight')));
+      } else if (it.kind === 'revive' && b.kind !== 'duel') {
         for (const m of s.party.filter((m) => m.hp <= 0)) {
           actions.append(h('button', { class: 'abtn', onclick: () => choose({ kind: 'item', itemId: id, targetId: m.uid }) },
             h('b', null, `${it.name} ×${n}`), h('span', { class: 'abinfo' }, `revive ${m.name}`)));
@@ -280,14 +336,14 @@ function allyCard(p: ParticipantView, size: 'lg' | 'md' | 'sm'): HTMLElement {
   const type = store.data.monsters[p.species]?.type ?? 'neutral';
   const status = !p.connected ? '📴' : p.chosen ? '✓' : '…';
   const statusTitle = !p.connected ? 'Disconnected: uses their default action' : p.chosen ? 'Ready' : 'Choosing...';
-  return h('div', { class: `acard${me ? ' me' : ''}${hit ? ' hit' : ''}${p.connected ? '' : ' dc'}`, 'data-hit': p.playerId, style: `--pc:${p.color}` },
+  return h('div', { class: `acard${tierClass(p.tier)}${me ? ' me' : ''}${hit ? ' hit' : ''}${p.connected ? '' : ' dc'}`, 'data-hit': p.playerId, style: `--pc:${p.color};${tierStyle(p.tier)}` },
     h('div', { class: 'owner' }, h('span', { class: 'dot', style: `background:${p.color}` }), h('span', { class: 'oname', title: me ? 'You' : p.name }, p.name),
       h('span', { class: `ps${p.chosen ? ' ready' : ''}`, title: statusTitle }, status)),
-    h('div', { class: 'pic', html: portraitFor(p.species, size === 'lg' ? 72 : size === 'md' ? 56 : 40) }),
+    h('div', { class: 'pic', html: portraitFor(p.species, size === 'lg' ? 72 : size === 'md' ? 56 : 40, p.tier) }),
     h('div', { class: 'ename' }, p.monsterName, ' ', h('span', { class: 'lv' }, `Lv ${p.level}`)),
-    typeChip(type),
+    h('div', { class: 'chips' }, tierBadge(p.tier), typeChip(type)),
     bar(p.hp, p.maxHp),
-    h('div', { class: 'num' }, `${p.hp} / ${p.maxHp}`));
+    h('div', { class: 'num' }, `${p.hp} / ${p.maxHp}`, fatigue(p.healMult)));
 }
 
 // ------------------------------------------------------------ summary
@@ -299,13 +355,18 @@ function showSummary(result: string, lines: string[], hits?: Hit[]) {
     // The fight's last round (the knockout) never gets a battle view, so play its numbers before the summary.
     spawnHits(hits);
     store.modalOpen = true;
-    summaryTimer = window.setTimeout(() => { if (!store.battle) renderSummary(result, lines); }, hitDelay(hits.length - 1) + 1100);
+    summaryPending = true;
+    summaryTimer = window.setTimeout(() => {
+      summaryPending = false;
+      if (!store.battle) renderSummary(result, lines);
+    }, hitDelay(hits.length - 1) + 1100);
     return;
   }
   renderSummary(result, lines);
 }
 
 function renderSummary(result: string, lines: string[]) {
+  summaryPending = false;
   const el = $('battle');
   summaryOpen = true;
   store.modalOpen = true;
@@ -314,12 +375,15 @@ function renderSummary(result: string, lines: string[]) {
   clear(el);
   el.append(h('div', { class: 'summary' },
     h('div', { class: 'big' }, result === 'wiped' ? '💀 Wiped out' : result === 'fled' ? '🏃 Got away' : result),
-    h('div', { class: 'b-log tall' }, ...lines.map((l) => h('div', { class: logClass(l) }, l))),
+    logPanel([...logHistory, { label: 'Result', lines }], true),
     h('button', { class: 'primary big', onclick: closeSummary }, 'Continue (Space)')));
+  const log = el.querySelector<HTMLElement>('.b-log');
+  if (log) log.scrollTop = log.scrollHeight;
 }
 
 function closeSummary() {
   summaryOpen = false;
   store.modalOpen = false;
+  releaseFocus();
   if (!store.battle) $('battle').hidden = true;
 }

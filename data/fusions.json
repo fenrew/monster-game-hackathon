@@ -1,7 +1,24 @@
 {
-  "minLevel": 5,
-  "costFormula": "100 + 20 * level",
-  "levelFormula": "Math.max(a, b)",
+  "costFormula": "50 * tier * tier - 100",
+  "levelFormula": "1",
+  "tierRecipes": {
+    "3": [
+      { "types": ["spark", "spark"], "result": "fulgurion" },
+      { "types": ["spark", "stone"], "result": "magnetaur" },
+      { "types": ["stone", "stone"], "result": "titanox" },
+      { "types": ["stone", "tide"], "result": "bogulith" },
+      { "types": ["tide", "tide"], "result": "abyssion" },
+      { "types": ["spark", "tide"], "result": "tempestray" }
+    ],
+    "4": [
+      { "types": ["spark", "spark"], "result": "voltaron" },
+      { "types": ["spark", "stone"], "result": "colossar" },
+      { "types": ["stone", "stone"], "result": "orogon" },
+      { "types": ["stone", "tide"], "result": "atlantor" },
+      { "types": ["tide", "tide"], "result": "thalassor" },
+      { "types": ["spark", "tide"], "result": "typhonix" }
+    ]
+  },
   "recipes": [
     { "types": ["spark", "spark"], "result": "thundrake" },
     { "types": ["spark", "stone"], "result": "voltgeode" },

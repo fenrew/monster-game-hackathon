@@ -16,22 +16,32 @@
     "critChance": 0.0625,
     "critMult": 1.5,
     "maxKnownAbilities": 6,
-    "trainerXpMult": 1.5
+    "trainerXpMult": 1.2,
+    "healDecay": 0.6,
+    "potionsPerFight": 3,
+    "eliteMaxActive": 4
   },
   "boss": {
-    "intervalSeconds": 240,
+    "intervalSeconds": 300,
     "warningSeconds": 30,
     "hpFormula": "baseHp * (1 + 0.6 * (N - 1))",
     "targetsFormula": "1 + Math.floor(N / 3)",
     "timeLimitSeconds": 300,
-    "bossesToWin": 3,
-    "victoryResetSeconds": 25
+    "empowerHpPerLoop": 0.5,
+    "empowerAtkPerLoop": 0.15,
+    "victoryResetSeconds": 25,
+    "rejoinLockoutSeconds": 60
   },
   "progression": {
     "xpToNextFormula": "12 + 6 * level",
-    "xpYieldFormula": "Math.round(baseXp * enemyLevel / 4)",
+    "xpYieldFormula": "Math.round(baseXp * enemyLevel / 6)",
     "catchFormula": "catchRate * orbMult * (1 - (2 / 3) * (hp / maxHp))",
-    "maxLevel": 30
+    "maxLevel": 50
+  },
+  "duel": {
+    "delaySeconds": 6,
+    "winnerCoins": 200,
+    "loserCoins": 50
   },
   "party": {
     "maxSize": 6

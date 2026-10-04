@@ -1,5 +1,6 @@
 // Procedural rock soundtrack (original compositions), synthesized with Web Audio: no audio files needed.
 // Three songs: overworld anthem, battle gallop, boss breakdown. M toggles music.
+import { isTyping } from './dom';
 
 type LeadNote = [string | null, number]; // note name (or null = rest), length in 16th steps
 
@@ -436,7 +437,7 @@ export function initMusic(currentSong: () => SongKey) {
   window.addEventListener('pointerdown', unlock);
   window.addEventListener('keydown', (e) => {
     unlock();
-    if (document.activeElement instanceof HTMLInputElement) return;
+    if (isTyping()) return;
     if (e.key === 'm' || e.key === 'M') music.toggleMute();
   });
   setInterval(() => music.play(currentSong()), 300);

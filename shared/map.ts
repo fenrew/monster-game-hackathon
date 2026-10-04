@@ -9,6 +9,7 @@ export class WorldMap {
   readonly height: number;
   private zoneGrid: (ZoneDef | null)[];
   private blockedObjects = new Set<string>();
+  private gates = new Map<string, string>(); // "x,y" -> quest that opens it
 
   constructor(readonly def: MapDef, readonly zones: ZoneDef[]) {
     this.width = def.width;
@@ -20,7 +21,10 @@ export class WorldMap {
           zones.find((z) => z.rects.some(([rx, ry, rw, rh]) => x >= rx && x < rx + rw && y >= ry && y < ry + rh)) ?? null;
       }
     }
-    for (const o of def.objects) if (BLOCKING_OBJECTS.has(o.type)) this.blockedObjects.add(o.x + ',' + o.y);
+    for (const o of def.objects) {
+      if (BLOCKING_OBJECTS.has(o.type)) this.blockedObjects.add(o.x + ',' + o.y);
+      if (o.type === 'gate' && o.quest) this.gates.set(o.x + ',' + o.y, o.quest);
+    }
   }
 
   inBounds(x: number, y: number) {
@@ -39,6 +43,11 @@ export class WorldMap {
     if (!this.inBounds(x, y)) return false;
     if (this.blockedObjects.has(x + ',' + y)) return false;
     return !!this.def.legend[this.tile(x, y)]?.walkable;
+  }
+
+  /** Quest that must be done to walk through this tile (a per-player gate), or null. */
+  gateQuest(x: number, y: number): string | null {
+    return this.gates.get(x + ',' + y) ?? null;
   }
 
   isGrass(x: number, y: number): boolean {

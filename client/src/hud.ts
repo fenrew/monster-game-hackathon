@@ -1,12 +1,13 @@
 import type { MapObject, ToastKind, ZoneDef } from '../../shared/types';
 import { recommendedLabel, zoneLevelLabel } from '../../shared/map';
-import { $, bar, clear, fmtTime, h } from './dom';
+import { badgesOf, gymOfLeader } from '../../shared/augments';
+import { $, bar, clear, fmtTime, h, isTyping, releaseFocus } from './dom';
 import { closeModal, interact, openBag, openHelp, openParty, openQuests } from './menus';
 import { music } from './music';
 import { net } from './net';
-import { portraitFor, store } from './state';
+import { portraitFor, store, tierBadge } from './state';
 
-const MINI = 4; // minimap pixels per tile
+const MINI = 3; // minimap pixels per tile
 let miniBase: HTMLCanvasElement;
 
 export function initHud() {
@@ -25,8 +26,11 @@ export function initHud() {
 
   // Clicked buttons keep focus, and Space would click them again: drop focus after each click.
   document.addEventListener('click', (e) => { if (e.target instanceof HTMLElement && e.target.closest('button')) (document.activeElement as HTMLElement | null)?.blur(); });
+  // clicking the map always hands the keyboard back to the game
+  $('game').addEventListener('pointerdown', () => (document.activeElement as HTMLElement | null)?.blur());
+  store.on('battleEnd', () => releaseFocus());
   window.addEventListener('keydown', (e) => {
-    const typing = document.activeElement instanceof HTMLInputElement;
+    const typing = isTyping();
     if (e.key === 'Escape') {
       if (typing) (document.activeElement as HTMLInputElement).blur();
       closeModal();
@@ -57,19 +61,26 @@ function renderTopbar() {
   if (!w) return;
   const el = $('topbar');
   const b = w.boss;
-  const pips = h('span', { class: 'pips', title: 'Bosses defeated' },
-    ...Array.from({ length: b.bossesToWin }, (_, i) => h('span', { class: i < b.bossesDefeated ? 'pip on' : 'pip' })));
+  const champion = Object.values(store.data.trainers).find((t) => t.elite);
+  const beaten = h('span', { class: 'online', title: 'Bosses defeated this run' }, `☠ ${b.bossesDefeated} defeated`);
+  const gyms = store.data.gyms;
+  const held = store.self ? badgesOf(store.data, store.self.defeatedTrainers).length : 0;
+  const needBadges = gyms.championNeedsAllBadges && held < gyms.gyms.length;
+  const goal = champion ? h('span', { class: 'goal', title: needBadges ? `Earn all ${gyms.gyms.length} gym badges, then beat the Champion at the Champion's Throne (far south-east) to win the run` : "Beat the Champion at the Champion's Throne (far south-east) to win the run" },
+    needBadges ? `🏅 Goal: ${held}/${gyms.gyms.length} badges, then ${champion.name}` : `👑 Goal: beat ${champion.name}`) : null;
   let main: HTMLElement;
   if (b.phase === 'countdown') {
     const warn = b.secondsLeft <= store.data.config.boss.warningSeconds;
     main = h('span', { class: warn ? 'clock warn' : 'clock' }, '☠ ', h('b', null, b.bossName), ' arrives in ', h('b', { class: 'time' }, fmtTime(b.secondsLeft)));
   } else if (b.phase === 'fight') {
-    main = h('span', { class: 'clock fight' }, '⚔ BOSS FIGHT: ', h('b', null, b.bossName), store.self?.inBattle ? '' : ' (portal open in town)');
+    const lock = Math.ceil(((store.self?.bossLockUntil ?? 0) - store.serverNow()) / 1000);
+    main = h('span', { class: 'clock fight' }, '⚔ BOSS FIGHT: ', h('b', null, b.bossName),
+      store.self?.inBattle ? '' : lock > 0 ? ` (you can rejoin in ${lock}s)` : ' (portal open in town)');
   } else {
     main = h('span', { class: 'clock win' }, '🏆 Victory! New run in ', h('b', null, fmtTime(b.secondsLeft)));
   }
   clear(el);
-  el.append(main, pips, h('span', { class: 'online' }, `👥 ${w.connected} online`));
+  el.append(main, beaten, goal ?? '', h('span', { class: 'online' }, `👥 ${w.connected} online`));
 }
 
 // ------------------------------------------------------------ party + quest tracker
@@ -80,6 +91,9 @@ function renderParty() {
   clear(el);
   if (!s) return;
   el.append(h('div', { class: 'coins' }, `🪙 ${s.coins}`, h('span', { class: 'muted' }, `  ·  rare luck ×${s.rareLuck.toFixed(1)}`)));
+  el.append(renderBadges());
+  const powers = renderPowers();
+  if (powers) el.append(powers);
   s.party.forEach((m, i) => {
     const lead = i === 0;
     el.append(h('div', {
@@ -87,11 +101,11 @@ function renderParty() {
       onclick: () => (lead || s.inBattle ? openParty() : setLead(i)),
       title: lead ? 'Your lead: fights first. Click to open your party (P)' : `Click (or press ${i + 1}) to make ${m.name} your lead`,
     },
-      h('div', { class: 'pic', html: portraitFor(m.species, 34) }),
+      h('div', { class: 'pic', html: portraitFor(m.species, 34, m.tier) }),
       h('div', { class: 'pinfo' },
-        h('div', { class: 'pname' }, lead ? h('span', { class: 'leadtag' }, 'LEAD ') : h('span', { class: 'slotkey' }, `${i + 1} `), m.name, h('span', { class: 'lv' }, ` Lv ${m.level}`)),
+        h('div', { class: 'pname' }, lead ? h('span', { class: 'leadtag' }, 'LEAD ') : h('span', { class: 'slotkey' }, `${i + 1} `), m.name, h('span', { class: 'lv' }, ` Lv ${m.level} `), tierBadge(m.tier)),
         bar(m.hp, m.maxHp),
-        bar(m.xp, m.xpToNext, 'xp'))));
+        m.level >= m.maxLevel ? h('div', { class: 'bar xp max', title: `Level cap for ★${m.tier}: fuse to go further` }, h('div', { class: 'fill', style: 'width:100%' })) : bar(m.xp, m.xpToNext, 'xp'))));
   });
 }
 
@@ -103,6 +117,31 @@ function setLead(index: number) {
   if (s.inBattle) { toast("You can't change your lead mid-fight. Use Swap instead.", 'bad'); return; }
   if (m.hp <= 0) toast(`${m.name} has fainted: your first healthy monster will fight instead.`, 'bad');
   net.send({ t: 'partyLead', uid: m.uid });
+}
+
+/** One slot per gym: lit once you hold its badge. */
+function renderBadges() {
+  const held = new Set(badgesOf(store.data, store.self?.defeatedTrainers ?? []).map((g) => g.id));
+  return h('div', { class: 'badges' }, ...store.data.gyms.gyms.map((g) => {
+    const has = held.has(g.id);
+    const leader = store.data.trainers[g.leader];
+    return h('span', {
+      class: has ? 'badge has' : 'badge',
+      style: has ? `border-color:${g.color};box-shadow:0 0 6px ${g.color}` : '',
+      title: has ? `${g.badge}: your ${store.data.types[g.type].name} moves deal +${Math.round(store.data.gyms.badgeBonus * 100)}% damage`
+        : `${g.badge}: beat ${leader.name} at the ${g.name}`,
+    }, g.icon);
+  }));
+}
+
+function renderPowers() {
+  const s = store.self;
+  if (!s || !s.augments.length) return null;
+  return h('div', { class: 'powers' }, ...s.augments.map((id) => {
+    const a = store.data.augments.augments.find((x) => x.id === id);
+    const r = a ? store.data.augments.rarities[a.rarity] : undefined;
+    return a ? h('span', { class: 'power', style: `border-color:${r?.color ?? '#888'}`, title: `${a.name}: ${a.description}` }, a.icon) : null;
+  }));
 }
 
 function renderTracker() {
@@ -210,12 +249,23 @@ function showBanner(z: ZoneDef) {
   bannerTimer = window.setTimeout(() => el.classList.remove('show'), 3200);
 }
 
+function eliteHint(id: string): string {
+  const name = store.data.trainers[id].name;
+  const gyms = store.data.gyms;
+  const held = badgesOf(store.data, store.self?.defeatedTrainers ?? []).length;
+  if (gyms.championNeedsAllBadges && held < gyms.gyms.length) return `talk to ${name} (only battles holders of all ${gyms.gyms.length} gym badges: you have ${held})`;
+  return `challenge ${name}: the FINAL battle (friends can walk in to help)`;
+}
+
 function renderHint(objs: MapObject[]) {
   const el = $('hint');
   const o = objs.find((o) => ['npc', 'trainer', 'shop', 'fusion', 'heal', 'sign'].includes(o.type));
   if (!o) { el.hidden = true; return; }
   const what = o.type === 'npc' ? `talk to ${store.data.quests.npcs[o.id!].name}`
-    : o.type === 'trainer' ? (store.self?.defeatedTrainers.includes(o.id!) ? `talk to ${store.data.trainers[o.id!].name}` : `challenge ${store.data.trainers[o.id!].name}`)
+    : o.type === 'trainer' ? (store.self?.defeatedTrainers.includes(o.id!) ? `talk to ${store.data.trainers[o.id!].name}`
+      : store.data.trainers[o.id!].elite ? eliteHint(o.id!)
+      : gymOfLeader(store.data, o.id!) ? `challenge ${store.data.trainers[o.id!].name} for the ${gymOfLeader(store.data, o.id!)!.icon} ${gymOfLeader(store.data, o.id!)!.badge} (friends can walk in to help)`
+      : `challenge ${store.data.trainers[o.id!].name}`)
     : o.type === 'shop' ? 'open the shop'
     : o.type === 'fusion' ? 'use the Fusion Lab'
     : o.type === 'heal' ? 'heal your monsters'
@@ -269,6 +319,8 @@ function buildButtons() {
   const vol = h('input', { type: 'range', min: '0', max: '1', step: '0.05', class: 'vol', title: 'Music volume' }) as HTMLInputElement;
   vol.value = String(music.volume);
   vol.addEventListener('input', () => music.setVolume(Number(vol.value)));
+  vol.addEventListener('change', () => vol.blur()); // never keep keyboard focus on the slider
+  vol.addEventListener('pointerup', () => vol.blur());
   const sync = () => {
     btn.textContent = music.muted ? '♪ Music: off (M)' : `♪ ${music.songName} (M)`;
     vol.disabled = music.muted;
@@ -291,12 +343,16 @@ function renderDown() {
     h('div', { class: 'big' }, '💀 Wiped out'),
     h('div', null, 'All your monsters fainted. Nothing is lost: you just have to wait.'),
     h('div', { class: 'countdown' }, `Respawning in town in ${Math.ceil(left)}s`),
-    store.world?.boss.phase === 'fight' ? h('div', { class: 'muted' }, 'You can rejoin the boss fight through the portal after respawning.') : null));
+    store.world?.boss.phase === 'fight' ? h('div', { class: 'muted' }, s.bossLockUntil > store.serverNow()
+      ? `You fell in the boss fight: the portal lets you back in after ${Math.ceil((s.bossLockUntil - store.serverNow()) / 1000)}s.`
+      : 'You can rejoin the boss fight through the portal after respawning.') : null));
 }
 
 let victoryUntil = 0;
-function showVictory(resetIn: number) {
+let victoryText = '';
+function showVictory(resetIn: number, winners: string[] = [], champion = 'the Champion') {
   victoryUntil = Date.now() + resetIn * 1000;
+  victoryText = `${winners.join(' & ') || 'Your team'} defeated ${champion}! Well played, everyone.`;
   renderVictory();
 }
 
@@ -307,7 +363,7 @@ function renderVictory() {
   el.hidden = false;
   clear(el);
   el.append(h('div', { class: 'victory-box' },
-    h('div', { class: 'big' }, '🏆 You survived the bosses!'),
-    h('div', null, `All ${store.data.config.boss.bossesToWin} bosses were defeated. Well played, everyone.`),
+    h('div', { class: 'big' }, '🏆 Champion defeated! You won the run!'),
+    h('div', null, victoryText),
     h('div', { class: 'countdown' }, `A fresh run begins in ${Math.ceil(left)}s`)));
 }

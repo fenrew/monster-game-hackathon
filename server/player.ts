@@ -1,6 +1,7 @@
 import type WebSocket from 'ws';
 import type { QuestProgress, SelfState } from '../shared/types';
 import type { Battle } from './battle';
+import type { Duel } from './duel';
 import { cfg } from './data';
 import { createMonster, Monster, viewMonster } from './monster';
 
@@ -22,9 +23,13 @@ export interface Player {
   down: boolean;
   respawnAt: number;
   needsStarter: boolean;
-  uniqueEncounter: { monster: string; level: number; zone: string } | null;
+  uniqueEncounter: { monster: string; level: number; zone: string; tier?: number } | null;
   defeatedTrainers: Set<string>;
-  battle: Battle | null;
+  augments: string[];
+  augmentOffer: { options: string[]; rerolls: number; rarity: string } | null;
+  offerQueue: number[]; // boss indices whose power pick is still waiting
+  battle: Battle | Duel | null;
+  bossLockUntil: number;
   immuneSteps: number;
   lastMoveAt: number;
   moveBudget: number;
@@ -45,6 +50,10 @@ export function resetProgress(p: Player) {
   p.needsStarter = true;
   p.uniqueEncounter = null;
   p.defeatedTrainers = new Set();
+  p.augments = [];
+  p.augmentOffer = null;
+  p.offerQueue = [];
+  p.bossLockUntil = 0;
   p.immuneSteps = 0;
   p.dirty = true;
 }
@@ -86,5 +95,8 @@ export function selfState(p: Player): SelfState {
     uniqueEncounter: p.uniqueEncounter,
     inBattle: p.battle?.id ?? null,
     defeatedTrainers: [...p.defeatedTrainers],
+    augments: [...p.augments],
+    augmentOffer: p.augmentOffer ? { ...p.augmentOffer, queued: p.offerQueue.length } : null,
+    bossLockUntil: p.bossLockUntil,
   };
 }

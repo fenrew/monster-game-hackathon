@@ -1,9 +1,10 @@
 import type { MonsterView, QuestDef } from '../../shared/types';
-import { fusionBlocker, fusionCost, fusionLevel, fusionResult } from '../../shared/fusion';
+import { augmentMods, discounted, mod } from '../../shared/augments';
+import { fuseLevelFor, fusionBlocker, maxTier, planFusion } from '../../shared/fusion';
 import { recommendedLabel, zoneLevelLabel } from '../../shared/map';
 import { $, bar, clear, h } from './dom';
 import { net } from './net';
-import { portraitFor, store, typeChip } from './state';
+import { portraitFor, store, tierBadge, typeChip } from './state';
 
 // ------------------------------------------------------------ modal plumbing
 
@@ -65,11 +66,13 @@ function monsterCard(m: MonsterView, actions: HTMLElement[], compact = false): H
     return h('span', { class: 'ab-chip', style: `border-color:${store.data.types[ab.type].color}`, title: ab.description ?? '' }, ab.name);
   });
   return h('div', { class: `mcard${m.hp <= 0 ? ' fainted' : ''}` },
-    h('div', { class: 'pic', html: portraitFor(m.species, compact ? 44 : 64) }),
+    h('div', { class: 'pic', html: portraitFor(m.species, compact ? 44 : 64, m.tier) }),
     h('div', { class: 'minfo' },
-      h('div', { class: 'mname' }, m.name, ' ', h('span', { class: 'lv' }, `Lv ${m.level}`), ' ', typeChip(m.type), m.hp <= 0 ? h('span', { class: 'ko' }, ' FAINTED') : null),
+      h('div', { class: 'mname' }, tierBadge(m.tier), ' ', m.name, ' ', h('span', { class: 'lv' }, `Lv ${m.level}`), ' ', typeChip(m.type), m.hp <= 0 ? h('span', { class: 'ko' }, ' FAINTED') : null),
       h('div', { class: 'statrow' }, bar(m.hp, m.maxHp), h('span', { class: 'num' }, `${m.hp}/${m.maxHp} HP`)),
-      compact ? null : h('div', { class: 'statrow' }, bar(m.xp, m.xpToNext, 'xp'), h('span', { class: 'num' }, `${m.xp}/${m.xpToNext} XP`)),
+      compact ? null : m.level >= m.maxLevel
+        ? h('div', { class: 'statrow capped' }, `Lv ${m.maxLevel} is the ★${m.tier} cap: fuse two ★${m.tier}s to reach the next tier.`)
+        : h('div', { class: 'statrow' }, bar(m.xp, m.xpToNext, 'xp'), h('span', { class: 'num' }, `${m.xp}/${m.xpToNext} XP · cap Lv ${m.maxLevel}`)),
       compact ? null : h('div', { class: 'muted' }, `ATK ${m.atk} · DEF ${m.def} · SPD ${m.spd}`),
       compact ? null : h('div', { class: 'abilities' }, ...abilities),
       actions.length ? h('div', { class: 'actions' }, ...actions) : null));
@@ -184,14 +187,18 @@ export function openShop() {
   openModal('Shop', () => {
     const s = store.self!;
     const items = Object.entries(store.data.items).filter(([, it]) => it.price > 0);
+    const off = mod(augmentMods(store.data, s.augments), 'shopDiscount');
     return h('div', null,
-      h('div', { class: 'coins big' }, `🪙 ${s.coins} coins`),
-      h('div', { class: 'list' }, ...items.map(([id, it]) => h('div', { class: 'row shoprow' },
-        h('div', null, h('b', null, it.name), ` · ${it.price} coins`, h('span', { class: 'muted' }, `  (have ${s.items[id] ?? 0})`),
-          h('div', { class: 'muted' }, it.description)),
-        h('div', { class: 'actions' },
-          h('button', { disabled: s.coins < it.price, onclick: () => net.send({ t: 'buy', item: id, qty: 1 }) }, 'Buy 1'),
-          h('button', { disabled: s.coins < it.price * 5, onclick: () => net.send({ t: 'buy', item: id, qty: 5 }) }, 'Buy 5'))))));
+      h('div', { class: 'coins big' }, `🪙 ${s.coins} coins`, off > 0 ? h('span', { class: 'muted' }, `  ·  ${Math.round(off * 100)}% off (power)`) : null),
+      h('div', { class: 'list' }, ...items.map(([id, it]) => {
+        const price = off > 0 ? discounted(it.price, off) : it.price;
+        return h('div', { class: 'row shoprow' },
+          h('div', null, h('b', null, it.name), ' · ', off > 0 ? h('s', { class: 'muted' }, String(it.price)) : null, ` ${price} coins`,
+            h('span', { class: 'muted' }, `  (have ${s.items[id] ?? 0})`), h('div', { class: 'muted' }, it.description)),
+          h('div', { class: 'actions' },
+            h('button', { disabled: s.coins < price, onclick: () => net.send({ t: 'buy', item: id, qty: 1 }) }, 'Buy 1'),
+            h('button', { disabled: s.coins < price * 5, onclick: () => net.send({ t: 'buy', item: id, qty: 5 }) }, 'Buy 5')));
+      })));
   });
 }
 
@@ -213,19 +220,19 @@ export function openFusion() {
     const slot = (m: MonsterView | null, clearIt: () => void) => h('div', {
       class: `fslot${m ? ' filled' : ''}`, title: m ? 'Click to remove' : '', onclick: () => { if (m) { clearIt(); openFusion(); } },
     }, ...(m
-      ? [h('div', { html: portraitFor(m.species, 64) }), h('b', null, m.name), h('span', { class: 'lv' }, `Lv ${m.level}`), typeChip(m.type)]
+      ? [h('div', { html: portraitFor(m.species, 64, m.tier) }), tierBadge(m.tier), h('b', null, m.name), h('span', { class: 'lv' }, `Lv ${m.level}`), typeChip(m.type)]
       : [h('div', { class: 'muted' }, 'Pick a monster below')]));
 
     let preview: HTMLElement;
     let fuseBtn: HTMLElement | null = null;
     if (A && B) {
-      const result = fusionResult(d, A.species, B.species);
-      if (result) {
-        const level = fusionLevel(d, A.level, B.level);
-        const cost = fusionCost(d, level);
+      const plan = planFusion(d, A, B);
+      if (typeof plan !== 'string') {
+        const { species: result, level, tier } = plan;
+        const cost = plan.cost > 0 ? discounted(plan.cost, mod(augmentMods(d, s.augments), 'fusionDiscount')) : 0;
         const rd = d.monsters[result];
-        preview = h('div', { class: 'fslot result filled' },
-          h('div', { html: portraitFor(result, 72) }), h('b', null, rd.name), h('span', { class: 'lv' }, `Lv ${level}`), typeChip(rd.type));
+        preview = h('div', { class: `fslot result filled t${tier}`, style: `--tc:${d.tiers.colors[tier - 1]}` },
+          h('div', { html: portraitFor(result, 72, tier) }), tierBadge(tier), h('b', null, rd.name), h('span', { class: 'lv' }, `Lv ${level}`), typeChip(rd.type));
         const poor = s.coins < cost;
         fuseBtn = h('div', { class: 'fuse-go' },
           h('button', {
@@ -234,7 +241,7 @@ export function openFusion() {
           }, `Fuse for ${cost} coins`),
           h('div', { class: 'muted' }, poor ? `You have ${s.coins} coins.` : `${A.name} and ${B.name} will be used up.`));
       } else {
-        preview = h('div', { class: 'fslot result' }, h('div', { class: 'muted' }, 'No recipe for this pair'));
+        preview = h('div', { class: 'fslot result' }, h('div', { class: 'muted' }, plan));
       }
     } else {
       preview = h('div', { class: 'fslot result' }, h('div', { class: 'big' }, '?'));
@@ -247,32 +254,33 @@ export function openFusion() {
       openFusion();
     };
     const rows = all.map((m) => {
-      const why = fusionBlocker(d, m.species, m.level);
+      const first = A ?? B;
+      let why = fusionBlocker(d, m);
+      if (!why && first && first.uid !== m.uid && first.tier !== m.tier) why = `needs ★${first.tier}`;
       const chosen = m.uid === fuseA || m.uid === fuseB;
       const where = s.party.includes(m) ? 'party' : 'storage';
       return h('div', { class: `frow${chosen ? ' chosen' : ''}` },
-        h('div', { html: portraitFor(m.species, 34) }),
-        h('div', { class: 'fname' }, h('b', null, m.name), h('span', { class: 'lv' }, ` Lv ${m.level}`), ' ', typeChip(m.type),
+        h('div', { html: portraitFor(m.species, 34, m.tier) }),
+        h('div', { class: 'fname' }, tierBadge(m.tier), ' ', h('b', null, m.name), h('span', { class: 'lv' }, ` Lv ${m.level}`), ' ', typeChip(m.type),
           h('span', { class: 'muted' }, `  ${where}`)),
         h('button', { disabled: !!why || chosen, onclick: () => pick(m.uid) }, chosen ? 'Picked' : why ?? 'Pick'));
     });
 
-    const recipes = d.fusions.recipes.map((r) => {
-      const rd = d.monsters[r.result];
-      return h('div', { class: 'recipe' }, typeChip(r.types[0]), ' + ', typeChip(r.types[1]), ' → ',
-        h('span', { html: portraitFor(r.result, 28) }), h('b', null, rd.name));
+    const ladder = Array.from({ length: maxTier(d) - 1 }, (_, i) => {
+      const t = i + 1;
+      return h('div', { class: 'rung' }, tierBadge(t), ' + ', tierBadge(t), h('span', { class: 'muted' }, ` both Lv ${fuseLevelFor(d, t)}+ `), '→ ', tierBadge(t + 1),
+        h('span', { class: 'muted' }, ` ${d.tiers.names[t]}`));
     });
 
     return h('div', null,
       h('div', { class: 'coins big' }, `🪙 ${s.coins} coins`),
+      h('div', { class: 'ladder' }, ...ladder),
       h('div', { class: 'fusion-row' }, slot(A, () => { fuseA = null; }), h('div', { class: 'fop' }, '+'), slot(B, () => { fuseB = null; }),
         h('div', { class: 'fop' }, '='), preview),
       fuseBtn,
       h('h3', null, 'Your monsters'),
       h('div', { class: 'list' }, ...rows),
-      h('h3', null, 'Recipe book'),
-      h('div', { class: 'recipes' }, ...recipes),
-      h('div', { class: 'muted' }, `The result's level is the higher parent's level. Cost grows with that level. Parents need Lv ${d.fusions.minLevel}+.`));
+      h('div', { class: 'muted' }, `The parents' types decide what you get. Fusing into ★3 or ★4 always creates a brand-new, much stronger species with its own signature move: experiment to discover them all! Higher tiers also have a higher level cap (${store.data.tiers.maxLevel.map((l, i) => '★' + (i + 1) + ' Lv ' + l).join(', ')}). The fused monster starts again at Lv 1.`));
   });
 }
 
@@ -281,7 +289,7 @@ export function openFusion() {
 export function openHelp() {
   const c = store.data.config;
   openModal('How to play', () => h('div', { class: 'help' },
-    h('p', null, h('b', null, 'Goal: '), `Every ${Math.round(c.boss.intervalSeconds / 60)} minutes a boss pulls the whole server into the arena. Defeat ${c.boss.bossesToWin} bosses to win. Every run starts fresh.`),
+    h('p', null, h('b', null, 'Goal: '), `Earn the ${store.data.gyms.gyms.length} gym badges, then beat ${Object.values(store.data.trainers).find((t) => t.elite)?.name ?? 'the Champion'} at the Champion's Throne, the far south-east corner past the Obsidian Wastes, to win the run. Every ${Math.round(c.boss.intervalSeconds / 60)} minutes a boss pulls the whole server into the arena; bosses keep coming (stronger every cycle) until the Champion falls. Every run starts fresh.`),
     h('p', null, h('b', null, 'Move: '), 'WASD / arrow keys.  ', h('b', null, 'Interact: '), 'E or Space.  ', h('b', null, 'Chat: '), 'Enter.'),
     h('p', null, h('b', null, 'Menus: '), 'P party · B bag · Q quests · H help · M music · Esc closes.'),
     h('p', null, h('b', null, 'Lead monster: '), 'Click a monster in the left sidebar (or press 1-6) to make it your lead: it starts your next fight.'),
@@ -289,10 +297,14 @@ export function openHelp() {
     h('p', null, h('b', null, 'Combat: '), `Everyone picks an action within ${c.combat.roundSeconds}s. If you don't choose, your monster repeats its last ability. Order: flee, then items and swaps, then abilities by speed.`),
     h('p', null, h('b', null, 'Co-op: '), `Players within ${c.combat.encounterPullRadius} tiles get pulled into a fight, and anyone can walk into a fight marked ⚔ on the map. Everyone gets full XP.`),
     h('p', null, h('b', null, 'Trainers: '), 'Trainers around the map battle you when you walk into their line of sight (the arrow shows where they look), or when you press E next to them. They send out their monsters one at a time. You can\'t flee or catch, but they pay well and give bonus XP.'),
-    h('p', null, h('b', null, 'Fusion Lab: '), 'In town, fuse two of your monsters (Lv ' + store.data.fusions.minLevel + '+) into a fusion-only species. The two types decide the result. Both parents are used up, and it costs coins.'),
+    h('p', null, h('b', null, 'Gyms: '), `${store.data.gyms.gyms.map((g) => `${g.icon} ${g.name}`).join(', ')}. Fight past the gym trainers and beat the Leader at the back to earn their badge: each badge makes your moves of that type deal +${Math.round(store.data.gyms.badgeBonus * 100)}% damage for the rest of the run.${store.data.gyms.championNeedsAllBadges ? ' The Champion only accepts challengers holding every badge (friends without badges can still walk in to help).' : ''} Everyone who wins a Leader fight earns the badge.`),
+    h('p', null, h('b', null, 'Tiers & fusion: '), `Every monster has a tier from ★ to ★★★★★, and each tier has a level cap (${store.data.tiers.maxLevel.join(' / ')}). Fuse two monsters of the same tier at the Fusion Lab to get one of the next tier: it starts at Lv 1 but has much better stats, stronger moves and a higher cap. Both parents need Lv ${store.data.tiers.fuseLevel.join(' / ')} for ★1 / ★2 / ★3 / ★4. Same species stays the same species; mixed species follow the type recipes.`),
+    h('p', null, h('b', null, 'The frontier: '), 'The starting region is fenced in. Warden Holt at the east gate lets you through once you complete his quest: own a ★2 monster and defeat 2 trainers. Beyond lie harder zones and the Frontier Outpost.'),
+    h('p', null, h('b', null, 'After a boss: '), `Every team is fully healed, then two random trainers are pulled into a 1v1 DUEL in the arena (winner +${c.duel.winnerCoins} coins). If you are wiped during a boss fight, the portal stays closed to you for ${c.boss.rejoinLockoutSeconds}s after you fall.`),
+    h('p', null, h('b', null, 'Powers: '), 'After every boss fight, won or lost, everyone picks one of 3 random powers (like augments in Teamfight Tactics): more damage, better catch rates, cheaper fusions, co-op auras and more. Later bosses offer rarer powers. You get one free reroll per pick, and your powers show under your party.'),
     h('p', null, h('b', null, 'Types: '), 'Spark beats Tide, Tide beats Stone, Stone beats Spark.'),
     h('p', null, h('b', null, 'Bosses: '), 'Watch the boss intent banner. When a boss charges a big attack, use Guard (yourself) or Bulwark (the whole team).'),
-    h('p', null, h('b', null, 'Wipes: '), `If all your monsters faint, you respawn in town after ${c.respawnSeconds}s with a healed team. If a boss fight is still going, rejoin through the portal.`)));
+    h('p', null, h('b', null, 'Wipes: '), `If all your monsters faint, you respawn after ${c.respawnSeconds}s with a healed team (in town, or at the Frontier Outpost if you fell out there). If a boss fight is still going, rejoin through the portal.`)));
 }
 
 // ------------------------------------------------------------ join / starter
