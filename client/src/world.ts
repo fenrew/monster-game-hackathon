@@ -40,6 +40,7 @@ export class WorldScene extends Phaser.Scene {
   private others = new Map<string, Avatar>();
   private markers = new Map<string, { c: Phaser.GameObjects.Container; ring: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text }>();
   private npcBubbles = new Map<string, Phaser.GameObjects.Text>();
+  private trainers = new Map<string, { c: Phaser.GameObjects.Container; label: Phaser.GameObjects.Text }>();
   private portalG!: Phaser.GameObjects.Graphics;
   private portalLabel!: Phaser.GameObjects.Text;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
@@ -70,6 +71,7 @@ export class WorldScene extends Phaser.Scene {
     store.on('world', () => this.syncWorld());
     store.on('self', () => {
       this.updateNpcBubbles();
+      this.updateTrainers();
       if (store.self) this.me.name.setText(store.self.name);
     });
     this.updateNpcBubbles();
@@ -214,6 +216,17 @@ export class WorldScene extends Phaser.Scene {
           g.fillStyle(0x7b4a24, 1).fillRect(cx - 4, cy + 4, 8, 10);
           this.label(cx, cy - 24, 'Shop (E)');
           break;
+        case 'fusion': {
+          g.fillStyle(0x000000, 0.25).fillEllipse(cx, cy + 13, 34, 8);
+          g.fillStyle(0x3d2b56, 1).fillRoundedRect(cx - 15, cy - 6, 30, 19, 4);
+          g.fillStyle(0x7fe9ff, 0.85).fillRoundedRect(cx - 14, cy - 16, 7, 18, 3);
+          g.fillStyle(0xff8ad8, 0.85).fillRoundedRect(cx + 7, cy - 16, 7, 18, 3);
+          g.fillStyle(0xd7a8ff, 0.35).fillCircle(cx, cy + 2, 9);
+          g.fillStyle(0xf5e1ff, 1).fillCircle(cx, cy + 2, 4.5);
+          g.lineStyle(1.5, 0xb48cff, 1).strokeRoundedRect(cx - 15, cy - 6, 30, 19, 4);
+          this.label(cx, cy - 25, 'Fusion Lab (E)');
+          break;
+        }
         case 'npc': {
           const npc = data.quests.npcs[o.id!];
           g.fillStyle(0x000000, 0.25).fillEllipse(cx, cy + 12, 22, 7);
@@ -230,11 +243,42 @@ export class WorldScene extends Phaser.Scene {
         case 'sign':
           this.drawSign(g, o);
           break;
+        case 'trainer':
+          this.drawTrainer(o);
+          break;
       }
     }
     const p = data.map.objects.find((o) => o.type === 'portal')!;
     this.portalG = this.add.graphics({ x: p.x * T + T / 2, y: p.y * T + T / 2 });
     this.portalLabel = this.label(p.x * T + T / 2, p.y * T - 6, 'Boss Portal');
+  }
+
+  private drawTrainer(o: MapObject) {
+    const t = store.data.trainers[o.id!];
+    const g = this.add.graphics();
+    const c = col(t.color);
+    g.fillStyle(0x000000, 0.25).fillEllipse(0, 12, 22, 7);
+    g.fillStyle(c, 1).fillRoundedRect(-9, -2, 18, 15, 5);
+    g.fillStyle(0xf2d2b0, 1).fillCircle(0, -8, 8);
+    // cap
+    g.fillStyle(shade(c, -0.35), 1).fillRect(-8, -16, 16, 5);
+    const [fx, fy] = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[t.facing];
+    g.fillRect(-8 + (fx > 0 ? 8 : fx < 0 ? -4 : 0), -12, 12, 3);
+    g.fillStyle(0x222222, 1).fillCircle(-3 + fx * 2, -8 + fy, 1.5).fillCircle(3 + fx * 2, -8 + fy, 1.5);
+    // facing arrow: shows which way they're watching
+    g.fillStyle(0xffffff, 0.75).fillTriangle(fx * 18 + fy * 4, fy * 18 + fx * 4, fx * 18 - fy * 4, fy * 18 - fx * 4, fx * 23, fy * 23);
+    const label = this.add.text(0, 24, t.name, { ...TEXT_STYLE, color: '#ffd0a0' }).setOrigin(0.5).setResolution(2);
+    const cont = this.add.container(o.x * T + T / 2, o.y * T + T / 2, [g, label]).setDepth(7);
+    this.trainers.set(o.id!, { c: cont, label });
+  }
+
+  private updateTrainers() {
+    const beaten = new Set(store.self?.defeatedTrainers ?? []);
+    for (const [id, t] of this.trainers) {
+      const done = beaten.has(id);
+      t.c.setAlpha(done ? 0.55 : 1);
+      t.label.setText(store.data.trainers[id].name + (done ? ' (beaten)' : ''));
+    }
   }
 
   private drawSign(g: Phaser.GameObjects.Graphics, o: MapObject) {

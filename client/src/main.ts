@@ -4,6 +4,7 @@ import { initHud, toast } from './hud';
 import { closeModal, hideJoin, initMenus, openHelp, showJoin } from './menus';
 import { net } from './net';
 import { store } from './state';
+import { initMusic } from './music';
 import { createGame } from './world';
 
 let uiReady = false;
@@ -79,7 +80,7 @@ net.onMessage = (msg) => {
       store.emit('battle');
       break;
     case 'battleEnd':
-      store.emit('battleEnd', msg.result, msg.summary);
+      store.emit('battleEnd', msg.result, msg.summary, msg.hits);
       break;
     case 'toast':
       store.emit('toast', msg.text, msg.kind);
@@ -95,5 +96,8 @@ net.onMessage = (msg) => {
 
 // Debug handle for the browser console (and automated tests): inspect window.__stb.
 (window as unknown as { __stb: typeof store }).__stb = store;
+
+// Soundtrack follows the action: boss fights, other battles, or exploring.
+initMusic(() => (store.battle?.kind === 'boss' ? 'boss' : store.battle ? 'battle' : 'overworld'));
 
 net.connect();

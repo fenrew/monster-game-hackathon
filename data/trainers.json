@@ -1,0 +1,44 @@
+{
+  "pip": {
+    "name": "Youngster Pip", "color": "#e67e22", "facing": "right", "sight": 5,
+    "intro": "Hey! You walked into my sight. That means we battle!",
+    "defeat": "Aww... I need to train more.",
+    "team": [ { "monster": "puddlefin", "level": 2 }, { "monster": "pebblit", "level": 3 } ],
+    "rewards": { "coins": 60, "items": { "potion": 1 } }
+  },
+  "mira": {
+    "name": "Lass Mira", "color": "#e84393", "facing": "left", "sight": 4,
+    "intro": "My monsters are cute AND strong. Let me show you!",
+    "defeat": "Okay, okay, yours are stronger.",
+    "team": [ { "monster": "pebblit", "level": 3 }, { "monster": "drizzlet", "level": 4 } ],
+    "rewards": { "coins": 80, "items": { "orb": 2 } }
+  },
+  "rook": {
+    "name": "Bug Catcher Rook", "color": "#27ae60", "facing": "down", "sight": 3,
+    "intro": "Shh! You'll scare the moths! ...Fine, battle me instead!",
+    "defeat": "My moths fluttered off. Good battle.",
+    "team": [ { "monster": "fizzbit", "level": 7 }, { "monster": "fizzbit", "level": 8 }, { "monster": "zapling", "level": 9 } ],
+    "rewards": { "coins": 150, "items": { "great_orb": 1 } }
+  },
+  "moss": {
+    "name": "Hiker Moss", "color": "#8d6e63", "facing": "left", "sight": 3,
+    "intro": "These rocks and I have walked a long way. Test yourself against us!",
+    "defeat": "Solid as stone, you are.",
+    "team": [ { "monster": "cragmole", "level": 8 }, { "monster": "pebblit", "level": 10 } ],
+    "rewards": { "coins": 150, "items": { "potion": 2 } }
+  },
+  "gil": {
+    "name": "Fisher Gil", "color": "#2980b9", "facing": "down", "sight": 3,
+    "intro": "Nothing's biting today. Maybe you will!",
+    "defeat": "Reeled in by a better angler...",
+    "team": [ { "monster": "puddlefin", "level": 11 }, { "monster": "drizzlet", "level": 12 }, { "monster": "torrentoad", "level": 14 } ],
+    "rewards": { "coins": 250, "items": { "super_potion": 1, "revive": 1 } }
+  },
+  "vera": {
+    "name": "Ace Trainer Vera", "color": "#c0392b", "facing": "left", "sight": 3,
+    "intro": "Few make it this deep into the cave. Bring your friends, you'll need them.",
+    "defeat": "Impressive. You might actually survive the bosses.",
+    "team": [ { "monster": "voltail", "level": 17 }, { "monster": "bouldurr", "level": 18 }, { "monster": "glimmoth", "level": 19 } ],
+    "rewards": { "coins": 400, "items": { "prism_orb": 1, "super_potion": 2 } }
+  }
+}

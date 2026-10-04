@@ -32,6 +32,8 @@ export interface MonsterDef {
   learnset: { level: number; ability: string }[];
   evolvesTo?: string;
   evolveLevel?: number;
+  fusion?: boolean;   // only obtainable from the Fusion Lab
+  noFusion?: boolean; // can't be used as a fusion parent
   description?: string;
 }
 
@@ -135,6 +137,24 @@ export interface BossDef {
   phases: BossPhaseDef[];
 }
 
+export interface TrainerDef {
+  name: string;
+  color: string;
+  facing: 'up' | 'down' | 'left' | 'right';
+  sight: number; // tiles they can see in the facing direction
+  intro: string;
+  defeat: string;
+  team: { monster: string; level: number }[];
+  rewards: { coins: number; items: Record<string, number> };
+}
+
+export interface FusionsFile {
+  minLevel: number;
+  costFormula: string;  // variables: level (of the result)
+  levelFormula: string; // variables: a, b (parent levels)
+  recipes: { types: [string, string]; result: string }[];
+}
+
 export interface ConfigFile {
   port: number;
   tickMs: number;
@@ -153,6 +173,7 @@ export interface ConfigFile {
     critChance: number;
     critMult: number;
     maxKnownAbilities: number;
+    trainerXpMult: number;
   };
   boss: {
     intervalSeconds: number;
@@ -179,6 +200,8 @@ export interface GameData {
   map: MapDef;
   quests: QuestsFile;
   bosses: BossDef[];
+  trainers: Record<string, TrainerDef>;
+  fusions: FusionsFile;
 }
 
 // ---------------------------------------------------------------- protocol
@@ -217,6 +240,7 @@ export interface SelfState {
   needsStarter: boolean;
   uniqueEncounter: { monster: string; level: number; zone: string } | null;
   inBattle: string | null;
+  defeatedTrainers: string[];
 }
 
 export interface WorldPlayer {
@@ -245,7 +269,17 @@ export interface WorldState {
   connected: number;
 }
 
-export type BattleKind = 'wild' | 'boss' | 'unique';
+export type BattleKind = 'wild' | 'boss' | 'unique' | 'trainer';
+
+/** One HP change in a round, for floating damage numbers. target = enemy id or player id. */
+export interface Hit {
+  target: string;
+  amount: number;
+  kind: 'dmg' | 'heal' | 'miss' | 'ability' | 'info'; // ability = callout over the user, info = e.g. catch result
+  text?: string;
+  crit?: boolean;
+  eff?: number; // type effectiveness multiplier
+}
 
 export interface EnemyView {
   id: string;
@@ -282,6 +316,8 @@ export interface BattleView {
   intent: string | null;
   intentDanger: boolean;
   log: string[];
+  hits: Hit[]; // HP changes from the round that just resolved
+  trainer: { name: string; color: string; remaining: number; total: number } | null;
   you: {
     activeUid: string;
     chosen: boolean;
@@ -310,7 +346,9 @@ export type ClientMsg =
   | { t: 'partyLead'; uid: string }
   | { t: 'partyStore'; uid: string }
   | { t: 'partyWithdraw'; uid: string }
-  | { t: 'chat'; text: string };
+  | { t: 'chat'; text: string }
+  | { t: 'challenge'; id: string }
+  | { t: 'fuse'; a: string; b: string };
 
 export type ToastKind = 'info' | 'good' | 'bad' | 'boss' | 'level';
 
@@ -322,7 +360,7 @@ export type ServerMsg =
   | { t: 'world'; world: WorldState }
   | { t: 'self'; self: SelfState }
   | { t: 'battle'; battle: BattleView }
-  | { t: 'battleEnd'; id: string; result: string; summary: string[] }
+  | { t: 'battleEnd'; id: string; result: string; summary: string[]; hits?: Hit[] }
   | { t: 'pos'; x: number; y: number; teleport?: boolean }
   | { t: 'toast'; text: string; kind: ToastKind }
   | { t: 'chat'; from: string; color: string; text: string }

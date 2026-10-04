@@ -69,7 +69,7 @@ const BODIES: Record<string, (c: string, d: string, l: string) => string> = {
   crystal: (c, d, l) => `
     <circle cx="50" cy="52" r="42" fill="${l}" opacity="0.25"/>
     <polygon points="50,6 80,34 72,86 28,86 20,34" fill="${c}" stroke="${d}" stroke-width="2.5"/>
-    <polyline points="50,6 50,86 M20,34 50,50 80,34" fill="none" stroke="${l}" stroke-width="2"/>
+    <path d="M50 6 L50 86 M20 34 L50 50 L80 34" fill="none" stroke="${l}" stroke-width="2"/>
     <polygon points="50,6 66,30 50,40 34,30" fill="${l}" opacity="0.8"/>
     ${eye(40, 56, 5)}${eye(60, 56, 5)}`,
   brute: (c, d, l) => `

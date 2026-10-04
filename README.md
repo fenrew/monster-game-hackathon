@@ -35,6 +35,7 @@ port forwarding also work. Set `PORT=xxxx` to use a different port.
 | P / B / Q / H | Party, bag, quests, help |
 | Enter | Chat |
 | 1-9 | Pick an ability in battle |
+| M | Toggle music (volume slider in the bottom-right) |
 | Esc | Close menus |
 
 ## How it plays
@@ -51,7 +52,16 @@ port forwarding also work. Set `PORT=xxxx` to use a different port.
 - **Bosses**: a global countdown runs, then everyone is teleported to the arena. Boss HP and targets per round scale with
   the connected player count, snapshotted at spawn. Bosses telegraph big attacks a round ahead, so use Guard (yourself)
   or Bulwark (the whole team). A lost boss fight returns everyone to town and the same boss comes back next cycle.
-- **Wipes**: if all your monsters faint you respawn in town after 60s with a healed team. You lose nothing.
+- **Trainers** stand around the map. Walk into their line of sight (the arrow shows which way they look) or press E
+  next to them to battle. They send out their team one monster at a time. You can't flee or catch, but they pay
+  coins and items and give 1.5× XP. Each player can beat each trainer once per run. Others can walk into the fight to help.
+- **Fusion Lab** (in town): pick two of your monsters (Lv 5+, from party or storage) and pay coins to fuse them into
+  one of 6 fusion-only species. The parents' type pair decides the result (e.g. Spark + Tide → Stormfin). The result's
+  level is the higher parent's level. Both parents are used up. The cost is `100 + 20 × level`.
+- **Soundtrack**: three original rock tracks synthesized live in the browser (no audio files): Route Riot while
+  exploring, Wild Clash in battles, Titan in boss fights. Songs and instruments live in `client/src/music.ts`.
+- **Damage numbers** pop over every monster that takes damage, heals or dodges each round.
+- **Wipes**: if all your monsters faint you respawn in town after 15s with a healed team. You lose nothing.
   If a boss fight is still running, the town portal takes you back in.
 - **Quests** give coins, items, *rare luck* (multiplies the weight of rare encounter entries) and, at the end of Sage
   Orla's chain, a one-time private encounter with the unique monster Aurorix.
@@ -69,6 +79,8 @@ errors. The client receives the data from the server, so you never need to rebui
 | `items.json` | Potions, revives, orbs (`catchMult`), shop prices (`price: 0` = not sold) |
 | `zones.json` | Rectangles, level range, recommended party size, encounter table with `rare` flags, group size, `hpMult`, hotspot flag, loot, colours |
 | `quests.json` | NPCs and quests (objectives: `defeat` / `catch` / `level`; rewards: coins, items, rareLuck, monster, uniqueEncounter) |
+| `trainers.json` | Trainer name, facing, sight range, intro/defeat lines, team (monster + level), rewards. Place them in `map.json` as `{"type":"trainer","id":...}` |
+| `fusions.json` | Fusion recipes (type pair → result), min parent level, cost and level formulas. Fusion-only monsters have `"fusion": true` in `monsters.json`; `"noFusion": true` protects a monster from being fused |
 | `bosses.json` | Boss stats, moves (`targets`: scaled/all/self, `telegraph`), move rotation, HP-threshold phases |
 | `map.json` | The 40×40 tile grid (one string per row) plus objects (NPCs, signs, heal, shop, portal, spawns) |
 | `types.json` | The type triangle: Spark → Tide → Stone → Spark |
@@ -78,7 +90,7 @@ Formulas in `config.json` are one-line JavaScript expressions:
 ```json
 "hpFormula": "baseHp * (1 + 0.6 * (N - 1))",
 "targetsFormula": "1 + Math.floor(N / 3)",
-"xpToNextFormula": "20 + 10 * level",
+"xpToNextFormula": "12 + 6 * level",
 "xpYieldFormula": "Math.round(baseXp * enemyLevel / 4)",
 "catchFormula": "catchRate * orbMult * (1 - (2 / 3) * (hp / maxHp))"
 ```

@@ -1,5 +1,5 @@
 import type {
-  AbilityDef, BattleAction, BattleKind, BattleView, BossDef, BossMoveDef, ServerMsg, Stages, StatKey, ZoneDef,
+  AbilityDef, BattleAction, BattleKind, BattleView, BossDef, BossMoveDef, Hit, ServerMsg, Stages, StatKey, TrainerDef, ZoneDef,
 } from '../shared/types';
 import { cfg, data, formulas } from './data';
 import { Monster, monsterName } from './monster';
@@ -109,6 +109,12 @@ export class Battle {
   private intent: string | null = null;
   private intentDanger = false;
   boss: BossState | null = null;
+  trainer: { id: string; def: TrainerDef } | null = null;
+  /** Trainer monsters waiting to be sent out, and the ones already beaten. */
+  readonly reserve: Combatant[] = [];
+  private fallen: Combatant[] = [];
+  /** HP changes from the last resolved round (floating damage numbers). */
+  hits: Hit[] = [];
 
   constructor(
     private host: BattleHost,
@@ -124,6 +130,14 @@ export class Battle {
     const def = data.monsters[m.species];
     return {
       id: m.uid, name: `Wild ${def.name}${suffix}`, species: m.species, isBoss: false, type: def.type,
+      monster: m, stages: {}, guardMult: 1,
+    };
+  }
+
+  static trainerCombatant(m: Monster, trainerName: string): Combatant {
+    const def = data.monsters[m.species];
+    return {
+      id: m.uid, name: `${trainerName}'s ${def.name}`, species: m.species, isBoss: false, type: def.type,
       monster: m, stages: {}, guardMult: 1,
     };
   }
@@ -171,6 +185,7 @@ export class Battle {
   }
 
   start() {
+    if (this.trainer) this.pendingLog.push(`${this.trainer.def.name}: "${this.trainer.def.intro}"`);
     this.startRound();
   }
 
@@ -195,6 +210,7 @@ export class Battle {
         if (!item || (p.player.items[a.itemId] ?? 0) <= 0) return "You don't have that item.";
         if (item.kind === 'orb') {
           if (this.kind === 'boss') return "Bosses can't be caught!";
+          if (this.kind === 'trainer') return "You can't catch another trainer's monster!";
           if (!this.enemies.some((e) => e.monster.hp > 0)) return 'Nothing to catch.';
         }
         if (item.kind === 'revive' && !p.player.party.some((m) => m.hp <= 0)) return 'No fainted monsters to revive.';
@@ -207,7 +223,8 @@ export class Battle {
         return null;
       }
       case 'flee':
-        return this.kind === 'boss' ? "You can't flee from a boss!" : null;
+        if (this.kind === 'boss') return "You can't flee from a boss!";
+        return this.kind === 'trainer' ? "You can't run from a trainer battle!" : null;
     }
     return 'Invalid action.';
   }
@@ -326,6 +343,7 @@ export class Battle {
 
   private resolve() {
     const log: string[] = [];
+    const hits: Hit[] = (this.hits = []);
     const parts = [...this.participants.values()];
     for (const p of parts) {
       if (!p.choice) {
@@ -374,6 +392,8 @@ export class Battle {
           p.active.hp = Math.min(p.active.maxHp, p.active.hp + Math.ceil(p.active.maxHp * (item.healPct ?? 0.5)));
           this.consume(p.player, a.itemId);
           log.push(`${p.player.name} used a ${item.name}: ${monsterName(p.active)} +${p.active.hp - before} HP.`);
+          hits.push({ target: p.player.id, amount: 0, kind: 'ability', text: item.name });
+          hits.push({ target: p.player.id, amount: p.active.hp - before, kind: 'heal' });
         } else if (item.kind === 'revive') {
           const m = p.player.party.find((m) => m.uid === a.targetId && m.hp <= 0) ?? p.player.party.find((m) => m.hp <= 0);
           if (m) {
@@ -408,9 +428,10 @@ export class Battle {
     let caught: Combatant | null = null;
 
     const aliveParticipants = () => [...this.participants.values()].filter((p) => p.active.hp > 0);
-    const hitPlayer = (p: Participant, dmg: number) => {
+    const hitPlayer = (p: Participant, dmg: number, crit?: boolean, eff?: number) => {
       const final = Math.max(1, Math.round(dmg * p.guardMult * playerBulwark));
       p.active.hp = Math.max(0, p.active.hp - final);
+      hits.push({ target: p.player.id, amount: final, kind: 'dmg', crit, eff });
       return final;
     };
 
@@ -431,18 +452,23 @@ export class Battle {
           const chance = Math.max(0, Math.min(1, formulas.catchChance({
             catchRate: def.catchRate, orbMult: item.catchMult ?? 1, hp: target.monster.hp, maxHp: target.monster.maxHp,
           })));
+          const pct = Math.round(chance * 100);
+          hits.push({ target: p.player.id, amount: 0, kind: 'ability', text: `${item.name} · ${pct}% chance` });
           if (Math.random() < chance) {
-            log.push(`${p.player.name} threw a ${item.name}... gotcha! ${def.name} was caught!`);
+            log.push(`${p.player.name} threw a ${item.name} (${pct}% chance)... gotcha! ${def.name} was caught!`);
+            hits.push({ target: target.id, amount: 0, kind: 'info', text: 'Gotcha!' });
             caughtBy = p;
             caught = target;
           } else {
-            log.push(`${p.player.name} threw a ${item.name}... ${def.name} broke free!`);
+            log.push(`${p.player.name} threw a ${item.name} (${pct}% chance)... ${def.name} broke free!`);
+            hits.push({ target: target.id, amount: 0, kind: 'info', text: 'Broke free!' });
           }
           continue;
         }
         if (a.kind !== 'ability') continue;
         const ab = data.abilities[a.abilityId];
         p.lastAbility = { abilityId: a.abilityId, targetId: a.targetId };
+        hits.push({ target: p.player.id, amount: 0, kind: 'ability', text: ab.name });
         const userType = data.monsters[p.active.species].type;
         const atk = p.active.atk * stageMult(p.stages.atk);
         if (ab.target === 'self' || ab.target === 'team') {
@@ -451,7 +477,11 @@ export class Battle {
           if (ab.guard !== undefined) { p.guardMult = Math.min(p.guardMult, ab.guard); effects.push('braces for impact'); }
           if (ab.bulwark !== undefined) { playerBulwark = Math.min(playerBulwark, ab.bulwark); effects.push('shields the whole team'); }
           if (ab.healPct) {
-            for (const t of team) t.active.hp = Math.min(t.active.maxHp, t.active.hp + Math.ceil(t.active.maxHp * ab.healPct));
+            for (const t of team) {
+              const before = t.active.hp;
+              t.active.hp = Math.min(t.active.maxHp, t.active.hp + Math.ceil(t.active.maxHp * ab.healPct));
+              if (t.active.hp > before) hits.push({ target: t.player.id, amount: t.active.hp - before, kind: 'heal' });
+            }
             effects.push(ab.target === 'team' ? 'heals the team' : 'recovers HP');
           }
           if (ab.buff) {
@@ -467,7 +497,7 @@ export class Battle {
         if (!targets.length) continue;
         const results: string[] = [];
         for (const t of targets) {
-          if (Math.random() > ab.accuracy) { results.push(`missed ${t.name}`); continue; }
+          if (Math.random() > ab.accuracy) { results.push(`missed ${t.name}`); hits.push({ target: t.id, amount: 0, kind: 'miss' }); continue; }
           if (ab.debuff) applyStages(t.stages, ab.debuff);
           if (ab.power <= 0) { results.push(`${t.name}'s ${Object.keys(ab.debuff ?? {}).join('/')} fell`); continue; }
           const r = calcDamage({
@@ -476,15 +506,16 @@ export class Battle {
           });
           const dmg = Math.max(1, Math.round(r.dmg * t.guardMult * enemyBulwark));
           t.monster.hp = Math.max(0, t.monster.hp - dmg);
+          hits.push({ target: t.id, amount: dmg, kind: 'dmg', crit: r.crit, eff: r.eff });
           results.push(`${t.name} -${dmg}${effText(r.eff, r.crit)}${t.monster.hp <= 0 ? ' and it fainted!' : ''}`);
         }
         log.push(`${who} used ${ab.name}: ${sentence(results)}`);
       } else {
         const e = entry.e;
         if (e.monster.hp <= 0) continue;
-        if (e.isBoss) this.bossAct(e, log, aliveParticipants, hitPlayer);
+        if (e.isBoss) this.bossAct(e, log, aliveParticipants, hitPlayer, hits);
         else {
-          const r = this.wildAct(e, log, aliveParticipants, hitPlayer);
+          const r = this.wildAct(e, log, aliveParticipants, hitPlayer, hits);
           if (r.bulwark !== undefined) enemyBulwark = Math.min(enemyBulwark, r.bulwark);
         }
       }
@@ -514,6 +545,14 @@ export class Battle {
       }
     }
 
+    // A trainer sends out their next monster once the current one faints.
+    if (this.enemies.every((e) => e.monster.hp <= 0) && this.reserve.length) {
+      const next = this.reserve.shift()!;
+      this.fallen.push(...this.enemies);
+      this.enemies.splice(0, this.enemies.length, next);
+      log.push(`${this.trainer?.def.name ?? 'The trainer'} sends out ${data.monsters[next.species].name}! (${this.reserve.length} left in reserve)`);
+    }
+
     this.log = log;
     if (this.enemies.every((e) => e.monster.hp <= 0)) { this.end('victory'); return; }
     if (this.participants.size === 0) { this.end('defeat'); return; }
@@ -521,7 +560,8 @@ export class Battle {
   }
 
   private wildAct(
-    e: Combatant, log: string[], alive: () => Participant[], hitPlayer: (p: Participant, d: number) => number,
+    e: Combatant, log: string[], alive: () => Participant[],
+    hitPlayer: (p: Participant, d: number, crit?: boolean, eff?: number) => number, hits: Hit[],
   ): { bulwark?: number } {
     const m = e.monster;
     const hpPct = m.hp / m.maxHp;
@@ -536,10 +576,17 @@ export class Battle {
     let abilityId = m.abilities[0];
     for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r <= 0) { abilityId = m.abilities[i]; break; } }
     const ab: AbilityDef = data.abilities[abilityId];
+    hits.push({ target: e.id, amount: 0, kind: 'ability', text: ab.name });
     if (ab.target === 'self' || ab.target === 'team') {
       const team = ab.target === 'self' ? [e] : this.enemies.filter((x) => x.monster.hp > 0);
       if (ab.guard !== undefined) e.guardMult = Math.min(e.guardMult, ab.guard);
-      if (ab.healPct) for (const t of team) t.monster.hp = Math.min(t.monster.maxHp, t.monster.hp + Math.ceil(t.monster.maxHp * ab.healPct));
+      if (ab.healPct) {
+        for (const t of team) {
+          const before = t.monster.hp;
+          t.monster.hp = Math.min(t.monster.maxHp, t.monster.hp + Math.ceil(t.monster.maxHp * ab.healPct));
+          if (t.monster.hp > before) hits.push({ target: t.id, amount: t.monster.hp - before, kind: 'heal' });
+        }
+      }
       if (ab.buff) for (const t of team) applyStages(t.stages, ab.buff);
       log.push(`${e.name} used ${ab.name}.`);
       return { bulwark: ab.bulwark };
@@ -548,14 +595,14 @@ export class Battle {
     if (!targets.length) return {};
     const results: string[] = [];
     for (const p of targets) {
-      if (Math.random() > ab.accuracy) { results.push(`missed ${monsterName(p.active)}`); continue; }
+      if (Math.random() > ab.accuracy) { results.push(`missed ${monsterName(p.active)}`); hits.push({ target: p.player.id, amount: 0, kind: 'miss' }); continue; }
       if (ab.debuff) applyStages(p.stages, ab.debuff);
       if (ab.power <= 0) { results.push(`${p.player.name}'s ${monsterName(p.active)} is weakened`); continue; }
       const r = calcDamage({
         level: m.level, atk: m.atk * stageMult(e.stages.atk), def: p.active.def * stageMult(p.stages.def),
         power: ab.power, moveType: ab.type, userType: e.type, targetType: data.monsters[p.active.species].type,
       });
-      const dmg = hitPlayer(p, r.dmg);
+      const dmg = hitPlayer(p, r.dmg, r.crit, r.eff);
       results.push(`${p.player.name}'s ${monsterName(p.active)} -${dmg}${effText(r.eff, r.crit)}`);
     }
     log.push(`${e.name} used ${ab.name}: ${sentence(results)}`);
@@ -563,17 +610,21 @@ export class Battle {
   }
 
   private bossAct(
-    e: Combatant, log: string[], alive: () => Participant[], hitPlayer: (p: Participant, d: number) => number,
+    e: Combatant, log: string[], alive: () => Participant[],
+    hitPlayer: (p: Participant, d: number, crit?: boolean, eff?: number) => number, hits: Hit[],
   ) {
     const b = this.boss!;
     if (!b.planned) {
       log.push(`${b.def.name} is gathering power...`);
+      hits.push({ target: e.id, amount: 0, kind: 'ability', text: 'Charging...' });
       return;
     }
     const mv = b.def.moves[b.planned];
+    hits.push({ target: e.id, amount: 0, kind: 'ability', text: mv.name });
     if (mv.targets === 'self') {
       const heal = Math.ceil(e.monster.maxHp * (mv.healPct ?? 0));
       e.monster.hp = Math.min(e.monster.maxHp, e.monster.hp + heal);
+      hits.push({ target: e.id, amount: heal, kind: 'heal' });
       log.push(`${b.def.name} used ${mv.name} and recovered ${heal} HP!`);
       return;
     }
@@ -582,14 +633,14 @@ export class Battle {
     const targets = shuffle([...pool]).slice(0, count);
     const results: string[] = [];
     for (const p of targets) {
-      if (Math.random() > mv.accuracy) { results.push(`missed ${p.player.name}`); continue; }
+      if (Math.random() > mv.accuracy) { results.push(`missed ${p.player.name}`); hits.push({ target: p.player.id, amount: 0, kind: 'miss' }); continue; }
       if (mv.debuff) applyStages(p.stages, mv.debuff);
       const r = calcDamage({
         level: e.monster.level, atk: e.monster.atk * b.atkMult * stageMult(e.stages.atk),
         def: p.active.def * stageMult(p.stages.def), power: mv.power, moveType: mv.type, userType: e.type,
         targetType: data.monsters[p.active.species].type,
       });
-      const dmg = hitPlayer(p, r.dmg);
+      const dmg = hitPlayer(p, r.dmg, r.crit, r.eff);
       results.push(`${p.player.name} -${dmg}${effText(r.eff, r.crit)}`);
     }
     log.push(`${b.def.name} used ${mv.name}${mv.targets === 'all' ? ' on everyone' : ''}: ${sentence(results)}`);
@@ -608,7 +659,7 @@ export class Battle {
     this.ended = true;
     const outcome: BattleOutcome = {
       result,
-      defeated: this.enemies.filter((e) => e.monster.hp <= 0),
+      defeated: [...this.fallen, ...this.enemies.filter((e) => e.monster.hp <= 0)],
       participants: [...this.participants.values()].map((p) => ({ player: p.player, uids: [...p.used] })),
       caughtBy,
       caught: caught?.monster,
@@ -651,6 +702,12 @@ export class Battle {
       intent: this.intent,
       intentDanger: this.intentDanger,
       log: this.log,
+      hits: this.hits,
+      trainer: this.trainer ? {
+        name: this.trainer.def.name, color: this.trainer.def.color,
+        remaining: this.reserve.length + this.enemies.filter((e) => e.monster.hp > 0).length,
+        total: this.trainer.def.team.length,
+      } : null,
       you: {
         activeUid: p.active.uid,
         chosen: !!p.choice,

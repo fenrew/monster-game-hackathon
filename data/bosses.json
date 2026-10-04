@@ -2,7 +2,7 @@
   {
     "id": "gravemaw", "name": "Gravemaw", "title": "The Stone Glutton",
     "type": "stone", "shape": "brute", "color": "#8b5a2b",
-    "level": 12, "baseHp": 135, "stats": { "atk": 20, "def": 18, "spd": 35 },
+    "level": 12, "baseHp": 95, "stats": { "atk": 20, "def": 18, "spd": 35 },
     "rewards": { "xp": 160, "coins": 150, "items": { "potion": 2 } },
     "moves": {
       "maul":  { "name": "Maul",  "type": "stone", "power": 50, "accuracy": 0.95, "targets": "scaled" },
@@ -15,7 +15,7 @@
   {
     "id": "vyrn", "name": "Stormcaller Vyrn", "title": "Eye of the Tempest",
     "type": "spark", "shape": "bird", "color": "#5b6ee1",
-    "level": 16, "baseHp": 210, "stats": { "atk": 26, "def": 24, "spd": 75 },
+    "level": 16, "baseHp": 147, "stats": { "atk": 26, "def": 24, "spd": 75 },
     "rewards": { "xp": 260, "coins": 250, "items": { "super_potion": 1, "revive": 1 } },
     "moves": {
       "bolt":         { "name": "Bolt",            "type": "spark", "power": 50, "accuracy": 0.95, "targets": "scaled" },
@@ -33,7 +33,7 @@
   {
     "id": "leviathrax", "name": "Leviathrax", "title": "The Drowned King",
     "type": "tide", "shape": "serpent", "color": "#16a085",
-    "level": 20, "baseHp": 215, "stats": { "atk": 27, "def": 28, "spd": 55 },
+    "level": 20, "baseHp": 150, "stats": { "atk": 27, "def": 28, "spd": 55 },
     "rewards": { "xp": 400, "coins": 400, "items": {} },
     "moves": {
       "crash":     { "name": "Crushing Wave", "type": "tide", "power": 55,  "accuracy": 0.95, "targets": "scaled" },

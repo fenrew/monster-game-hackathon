@@ -1,4 +1,5 @@
 import type { MonsterView, QuestDef } from '../../shared/types';
+import { fusionBlocker, fusionCost, fusionLevel, fusionResult } from '../../shared/fusion';
 import { recommendedLabel, zoneLevelLabel } from '../../shared/map';
 import { $, bar, clear, h } from './dom';
 import { net } from './net';
@@ -42,10 +43,12 @@ export function initMenus() {
 
 export function interact() {
   const objs = store.map.objectsNear(store.pos.x, store.pos.y);
-  const o = objs.find((o) => o.type === 'npc') ?? objs.find((o) => o.type === 'shop') ?? objs.find((o) => o.type === 'heal') ?? objs.find((o) => o.type === 'sign');
+  const o = objs.find((o) => o.type === 'npc') ?? objs.find((o) => o.type === 'trainer') ?? objs.find((o) => o.type === 'shop') ?? objs.find((o) => o.type === 'fusion') ?? objs.find((o) => o.type === 'heal') ?? objs.find((o) => o.type === 'sign');
   if (!o) return;
   if (o.type === 'npc') openNpc(o.id!);
+  else if (o.type === 'trainer') net.send({ t: 'challenge', id: o.id! });
   else if (o.type === 'shop') openShop();
+  else if (o.type === 'fusion') openFusion();
   else if (o.type === 'heal') net.send({ t: 'heal' });
   else if (o.type === 'sign') {
     const z = store.data.zones.find((z) => z.id === o.zone)!;
@@ -192,6 +195,87 @@ export function openShop() {
   });
 }
 
+// ------------------------------------------------------------ fusion lab
+
+let fuseA: string | null = null;
+let fuseB: string | null = null;
+
+export function openFusion() {
+  openModal('⚗ Fusion Lab', () => {
+    const s = store.self!;
+    const d = store.data;
+    const all = [...s.party, ...s.storage];
+    if (!all.some((m) => m.uid === fuseA)) fuseA = null;
+    if (!all.some((m) => m.uid === fuseB)) fuseB = null;
+    const A = all.find((m) => m.uid === fuseA) ?? null;
+    const B = all.find((m) => m.uid === fuseB) ?? null;
+
+    const slot = (m: MonsterView | null, clearIt: () => void) => h('div', {
+      class: `fslot${m ? ' filled' : ''}`, title: m ? 'Click to remove' : '', onclick: () => { if (m) { clearIt(); openFusion(); } },
+    }, ...(m
+      ? [h('div', { html: portraitFor(m.species, 64) }), h('b', null, m.name), h('span', { class: 'lv' }, `Lv ${m.level}`), typeChip(m.type)]
+      : [h('div', { class: 'muted' }, 'Pick a monster below')]));
+
+    let preview: HTMLElement;
+    let fuseBtn: HTMLElement | null = null;
+    if (A && B) {
+      const result = fusionResult(d, A.species, B.species);
+      if (result) {
+        const level = fusionLevel(d, A.level, B.level);
+        const cost = fusionCost(d, level);
+        const rd = d.monsters[result];
+        preview = h('div', { class: 'fslot result filled' },
+          h('div', { html: portraitFor(result, 72) }), h('b', null, rd.name), h('span', { class: 'lv' }, `Lv ${level}`), typeChip(rd.type));
+        const poor = s.coins < cost;
+        fuseBtn = h('div', { class: 'fuse-go' },
+          h('button', {
+            class: 'primary big', disabled: poor,
+            onclick: () => { net.send({ t: 'fuse', a: A.uid, b: B.uid }); fuseA = fuseB = null; },
+          }, `Fuse for ${cost} coins`),
+          h('div', { class: 'muted' }, poor ? `You have ${s.coins} coins.` : `${A.name} and ${B.name} will be used up.`));
+      } else {
+        preview = h('div', { class: 'fslot result' }, h('div', { class: 'muted' }, 'No recipe for this pair'));
+      }
+    } else {
+      preview = h('div', { class: 'fslot result' }, h('div', { class: 'big' }, '?'));
+    }
+
+    const pick = (uid: string) => {
+      if (!fuseA) fuseA = uid;
+      else if (!fuseB) fuseB = uid;
+      else fuseB = uid;
+      openFusion();
+    };
+    const rows = all.map((m) => {
+      const why = fusionBlocker(d, m.species, m.level);
+      const chosen = m.uid === fuseA || m.uid === fuseB;
+      const where = s.party.includes(m) ? 'party' : 'storage';
+      return h('div', { class: `frow${chosen ? ' chosen' : ''}` },
+        h('div', { html: portraitFor(m.species, 34) }),
+        h('div', { class: 'fname' }, h('b', null, m.name), h('span', { class: 'lv' }, ` Lv ${m.level}`), ' ', typeChip(m.type),
+          h('span', { class: 'muted' }, `  ${where}`)),
+        h('button', { disabled: !!why || chosen, onclick: () => pick(m.uid) }, chosen ? 'Picked' : why ?? 'Pick'));
+    });
+
+    const recipes = d.fusions.recipes.map((r) => {
+      const rd = d.monsters[r.result];
+      return h('div', { class: 'recipe' }, typeChip(r.types[0]), ' + ', typeChip(r.types[1]), ' → ',
+        h('span', { html: portraitFor(r.result, 28) }), h('b', null, rd.name));
+    });
+
+    return h('div', null,
+      h('div', { class: 'coins big' }, `🪙 ${s.coins} coins`),
+      h('div', { class: 'fusion-row' }, slot(A, () => { fuseA = null; }), h('div', { class: 'fop' }, '+'), slot(B, () => { fuseB = null; }),
+        h('div', { class: 'fop' }, '='), preview),
+      fuseBtn,
+      h('h3', null, 'Your monsters'),
+      h('div', { class: 'list' }, ...rows),
+      h('h3', null, 'Recipe book'),
+      h('div', { class: 'recipes' }, ...recipes),
+      h('div', { class: 'muted' }, `The result's level is the higher parent's level. Cost grows with that level. Parents need Lv ${d.fusions.minLevel}+.`));
+  });
+}
+
 // ------------------------------------------------------------ help
 
 export function openHelp() {
@@ -199,10 +283,13 @@ export function openHelp() {
   openModal('How to play', () => h('div', { class: 'help' },
     h('p', null, h('b', null, 'Goal: '), `Every ${Math.round(c.boss.intervalSeconds / 60)} minutes a boss pulls the whole server into the arena. Defeat ${c.boss.bossesToWin} bosses to win. Every run starts fresh.`),
     h('p', null, h('b', null, 'Move: '), 'WASD / arrow keys.  ', h('b', null, 'Interact: '), 'E or Space.  ', h('b', null, 'Chat: '), 'Enter.'),
-    h('p', null, h('b', null, 'Menus: '), 'P party · B bag · Q quests · H help · Esc closes.'),
+    h('p', null, h('b', null, 'Menus: '), 'P party · B bag · Q quests · H help · M music · Esc closes.'),
+    h('p', null, h('b', null, 'Lead monster: '), 'Click a monster in the left sidebar (or press 1-6) to make it your lead: it starts your next fight.'),
     h('p', null, h('b', null, 'Zones: '), 'Ground colour, minimap tint and signposts show each zone\'s level range and recommended party size. Green is easy; yellow, orange and red get harder. Wild monsters hide in tall grass; in the Crystal Cave they lurk everywhere.'),
     h('p', null, h('b', null, 'Combat: '), `Everyone picks an action within ${c.combat.roundSeconds}s. If you don't choose, your monster repeats its last ability. Order: flee, then items and swaps, then abilities by speed.`),
     h('p', null, h('b', null, 'Co-op: '), `Players within ${c.combat.encounterPullRadius} tiles get pulled into a fight, and anyone can walk into a fight marked ⚔ on the map. Everyone gets full XP.`),
+    h('p', null, h('b', null, 'Trainers: '), 'Trainers around the map battle you when you walk into their line of sight (the arrow shows where they look), or when you press E next to them. They send out their monsters one at a time. You can\'t flee or catch, but they pay well and give bonus XP.'),
+    h('p', null, h('b', null, 'Fusion Lab: '), 'In town, fuse two of your monsters (Lv ' + store.data.fusions.minLevel + '+) into a fusion-only species. The two types decide the result. Both parents are used up, and it costs coins.'),
     h('p', null, h('b', null, 'Types: '), 'Spark beats Tide, Tide beats Stone, Stone beats Spark.'),
     h('p', null, h('b', null, 'Bosses: '), 'Watch the boss intent banner. When a boss charges a big attack, use Guard (yourself) or Bulwark (the whole team).'),
     h('p', null, h('b', null, 'Wipes: '), `If all your monsters faint, you respawn in town after ${c.respawnSeconds}s with a healed team. If a boss fight is still going, rejoin through the portal.`)));

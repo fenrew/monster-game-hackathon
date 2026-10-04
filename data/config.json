@@ -2,7 +2,7 @@
   "port": 3000,
   "tickMs": 100,
   "moveIntervalMs": 140,
-  "respawnSeconds": 60,
+  "respawnSeconds": 15,
   "reconnectGraceSeconds": 120,
   "combat": {
     "roundSeconds": 8,
@@ -15,10 +15,11 @@
     "notEffective": 0.67,
     "critChance": 0.0625,
     "critMult": 1.5,
-    "maxKnownAbilities": 6
+    "maxKnownAbilities": 6,
+    "trainerXpMult": 1.5
   },
   "boss": {
-    "intervalSeconds": 150,
+    "intervalSeconds": 240,
     "warningSeconds": 30,
     "hpFormula": "baseHp * (1 + 0.6 * (N - 1))",
     "targetsFormula": "1 + Math.floor(N / 3)",
@@ -27,7 +28,7 @@
     "victoryResetSeconds": 25
   },
   "progression": {
-    "xpToNextFormula": "20 + 10 * level",
+    "xpToNextFormula": "12 + 6 * level",
     "xpYieldFormula": "Math.round(baseXp * enemyLevel / 4)",
     "catchFormula": "catchRate * orbMult * (1 - (2 / 3) * (hp / maxHp))",
     "maxLevel": 30

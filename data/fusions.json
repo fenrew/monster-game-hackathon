@@ -1,0 +1,13 @@
+{
+  "minLevel": 5,
+  "costFormula": "100 + 20 * level",
+  "levelFormula": "Math.max(a, b)",
+  "recipes": [
+    { "types": ["spark", "spark"], "result": "thundrake" },
+    { "types": ["spark", "stone"], "result": "voltgeode" },
+    { "types": ["stone", "stone"], "result": "golemar" },
+    { "types": ["stone", "tide"],  "result": "bogrock" },
+    { "types": ["tide", "tide"],   "result": "abyssqual" },
+    { "types": ["spark", "tide"],  "result": "stormfin" }
+  ]
+}

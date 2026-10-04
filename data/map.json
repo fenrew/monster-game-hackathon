@@ -57,6 +57,7 @@
     {"type":"spawn","x":19,"y":33},
     {"type":"heal","x":16,"y":30},
     {"type":"shop","x":23,"y":30},
+    {"type":"fusion","x":23,"y":32},
     {"type":"portal","x":16,"y":32},
     {"type":"npc","id":"elder","x":16,"y":36},
     {"type":"npc","id":"ranger","x":23,"y":36},
@@ -73,6 +74,12 @@
     {"type":"sign","zone":"marsh","x":19,"y":15},
     {"type":"sign","zone":"forest","x":21,"y":15},
     {"type":"sign","zone":"cave","x":32,"y":12},
-    {"type":"sign","zone":"marsh","x":32,"y":10}
+    {"type":"sign","zone":"marsh","x":32,"y":10},
+    {"type":"trainer","id":"pip","x":4,"y":30},
+    {"type":"trainer","id":"mira","x":35,"y":30},
+    {"type":"trainer","id":"rook","x":14,"y":13},
+    {"type":"trainer","id":"moss","x":12,"y":18},
+    {"type":"trainer","id":"gil","x":27,"y":13},
+    {"type":"trainer","id":"vera","x":37,"y":8}
   ]
 }

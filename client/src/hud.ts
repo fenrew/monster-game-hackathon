@@ -2,6 +2,7 @@ import type { MapObject, ToastKind, ZoneDef } from '../../shared/types';
 import { recommendedLabel, zoneLevelLabel } from '../../shared/map';
 import { $, bar, clear, fmtTime, h } from './dom';
 import { closeModal, interact, openBag, openHelp, openParty, openQuests } from './menus';
+import { music } from './music';
 import { net } from './net';
 import { portraitFor, store } from './state';
 
@@ -45,6 +46,7 @@ export function initHud() {
     else if (k === 'b') openBag();
     else if (k === 'q') openQuests();
     else if (k === 'h' || k === '?') openHelp();
+    else if (/^[1-6]$/.test(k) && !store.modalOpen) setLead(Number(k) - 1);
   });
 }
 
@@ -79,13 +81,28 @@ function renderParty() {
   if (!s) return;
   el.append(h('div', { class: 'coins' }, `🪙 ${s.coins}`, h('span', { class: 'muted' }, `  ·  rare luck ×${s.rareLuck.toFixed(1)}`)));
   s.party.forEach((m, i) => {
-    el.append(h('div', { class: `pcard${m.hp <= 0 ? ' fainted' : ''}${i === 0 ? ' lead' : ''}`, onclick: openParty, title: 'Open party (P)' },
+    const lead = i === 0;
+    el.append(h('div', {
+      class: `pcard${m.hp <= 0 ? ' fainted' : ''}${lead ? ' lead' : ''}`,
+      onclick: () => (lead || s.inBattle ? openParty() : setLead(i)),
+      title: lead ? 'Your lead: fights first. Click to open your party (P)' : `Click (or press ${i + 1}) to make ${m.name} your lead`,
+    },
       h('div', { class: 'pic', html: portraitFor(m.species, 34) }),
       h('div', { class: 'pinfo' },
-        h('div', { class: 'pname' }, m.name, h('span', { class: 'lv' }, ` Lv ${m.level}`)),
+        h('div', { class: 'pname' }, lead ? h('span', { class: 'leadtag' }, 'LEAD ') : h('span', { class: 'slotkey' }, `${i + 1} `), m.name, h('span', { class: 'lv' }, ` Lv ${m.level}`)),
         bar(m.hp, m.maxHp),
         bar(m.xp, m.xpToNext, 'xp'))));
   });
+}
+
+/** Pick which monster starts the next fight (outside combat). */
+function setLead(index: number) {
+  const s = store.self;
+  const m = s?.party[index];
+  if (!s || !m || index === 0) return;
+  if (s.inBattle) { toast("You can't change your lead mid-fight. Use Swap instead.", 'bad'); return; }
+  if (m.hp <= 0) toast(`${m.name} has fainted: your first healthy monster will fight instead.`, 'bad');
+  net.send({ t: 'partyLead', uid: m.uid });
 }
 
 function renderTracker() {
@@ -195,10 +212,12 @@ function showBanner(z: ZoneDef) {
 
 function renderHint(objs: MapObject[]) {
   const el = $('hint');
-  const o = objs.find((o) => ['npc', 'shop', 'heal', 'sign'].includes(o.type));
+  const o = objs.find((o) => ['npc', 'trainer', 'shop', 'fusion', 'heal', 'sign'].includes(o.type));
   if (!o) { el.hidden = true; return; }
   const what = o.type === 'npc' ? `talk to ${store.data.quests.npcs[o.id!].name}`
+    : o.type === 'trainer' ? (store.self?.defeatedTrainers.includes(o.id!) ? `talk to ${store.data.trainers[o.id!].name}` : `challenge ${store.data.trainers[o.id!].name}`)
     : o.type === 'shop' ? 'open the shop'
+    : o.type === 'fusion' ? 'use the Fusion Lab'
     : o.type === 'heal' ? 'heal your monsters'
     : 'read the sign';
   el.textContent = `Press E to ${what}`;
@@ -246,6 +265,17 @@ function buildButtons() {
     h('button', { onclick: openQuests }, 'Quests (Q)'),
     h('button', { onclick: openHelp }, 'Help (H)'),
   );
+  const btn = h('button', { onclick: () => music.toggleMute(), title: 'Toggle music (M)' });
+  const vol = h('input', { type: 'range', min: '0', max: '1', step: '0.05', class: 'vol', title: 'Music volume' }) as HTMLInputElement;
+  vol.value = String(music.volume);
+  vol.addEventListener('input', () => music.setVolume(Number(vol.value)));
+  const sync = () => {
+    btn.textContent = music.muted ? '♪ Music: off (M)' : `♪ ${music.songName} (M)`;
+    vol.disabled = music.muted;
+  };
+  music.onChange = sync;
+  sync();
+  el.prepend(h('span', { class: 'music' }, btn, vol));
 }
 
 // ------------------------------------------------------------ overlays

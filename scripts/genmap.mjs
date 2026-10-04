@@ -142,6 +142,7 @@ const objects = [
   { type: 'spawn', x: 19, y: 33 },
   { type: 'heal', x: 16, y: 30 },
   { type: 'shop', x: 23, y: 30 },
+  { type: 'fusion', x: 23, y: 32 },
   { type: 'portal', x: 16, y: 32 },
   { type: 'npc', id: 'elder', x: 16, y: 36 },
   { type: 'npc', id: 'ranger', x: 23, y: 36 },
@@ -160,13 +161,20 @@ const objects = [
   { type: 'sign', zone: 'forest', x: 21, y: 15 },
   { type: 'sign', zone: 'cave', x: 32, y: 12 },
   { type: 'sign', zone: 'marsh', x: 32, y: 10 },
+  // trainers (details in data/trainers.json)
+  { type: 'trainer', id: 'pip', x: 4, y: 30 },
+  { type: 'trainer', id: 'mira', x: 35, y: 30 },
+  { type: 'trainer', id: 'rook', x: 14, y: 13 },
+  { type: 'trainer', id: 'moss', x: 12, y: 18 },
+  { type: 'trainer', id: 'gil', x: 27, y: 13 },
+  { type: 'trainer', id: 'vera', x: 37, y: 8 },
 ];
 for (const o of objects) {
   if (['arenaSpawn', 'bossSpot', 'spawn', 'portal'].includes(o.type)) continue;
   if (zoneAt(o.x, o.y) === 'town') set(o.x, o.y, '.');
   else if (blocked(get(o.x, o.y)) || get(o.x, o.y) === ',') set(o.x, o.y, '.');
 }
-const objectBlocks = new Set(objects.filter((o) => ['heal', 'shop', 'npc', 'sign'].includes(o.type)).map((o) => o.x + ',' + o.y));
+const objectBlocks = new Set(objects.filter((o) => ['heal', 'shop', 'fusion', 'npc', 'sign', 'trainer'].includes(o.type)).map((o) => o.x + ',' + o.y));
 
 // --- connectivity: anything not reachable from spawn becomes a wall ---
 const seen = new Set();

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type {
-  AbilityDef, BossDef, ConfigFile, GameData, ItemDef, MapDef, MonsterDef, QuestsFile, TypeDef, ZoneDef,
+  AbilityDef, BossDef, ConfigFile, GameData, ItemDef, FusionsFile, MapDef, MonsterDef, QuestsFile, TrainerDef, TypeDef, ZoneDef,
 } from '../shared/types';
 import { WorldMap } from '../shared/map';
 
@@ -36,6 +36,8 @@ export const data: GameData = {
   map: load<MapDef>('map.json'),
   quests: load<QuestsFile>('quests.json'),
   bosses: load<BossDef[]>('bosses.json'),
+  trainers: load<Record<string, TrainerDef>>('trainers.json'),
+  fusions: load<FusionsFile>('fusions.json'),
 };
 
 export const cfg = data.config;
@@ -91,7 +93,22 @@ export function validateData(): string[] {
   }
   need(bosses.length >= data.config.boss.bossesToWin, `bosses.json has fewer bosses than bossesToWin`);
   need(map.rows.length === map.height && map.rows.every((r) => r.length === map.width), 'map.json: rows do not match width/height');
+  const typeIds = Object.keys(types).filter((t) => t !== 'neutral');
+  for (let i = 0; i < typeIds.length; i++) for (let j = i; j < typeIds.length; j++) {
+    const key = [typeIds[i], typeIds[j]].sort().join('+');
+    need(data.fusions.recipes.some((r) => [...r.types].sort().join('+') === key), `fusions.json: no recipe for ${key}`);
+  }
+  for (const r of data.fusions.recipes) need(monsters[r.result], `fusions.json: unknown result ${r.result}`);
+  need(map.objects.some((o) => o.type === 'fusion'), 'map: missing fusion object');
+  for (const [id, t] of Object.entries(data.trainers)) {
+    need(t.team.length > 0, `trainer ${id}: empty team`);
+    for (const m of t.team) need(monsters[m.monster], `trainer ${id}: unknown monster ${m.monster}`);
+    for (const it of Object.keys(t.rewards.items ?? {})) need(items[it], `trainer ${id}: unknown reward item ${it}`);
+    need(['up', 'down', 'left', 'right'].includes(t.facing), `trainer ${id}: bad facing ${t.facing}`);
+    need(map.objects.some((o) => o.type === 'trainer' && o.id === id), `trainer ${id}: not placed on the map`);
+  }
   for (const o of map.objects) {
+    if (o.type === 'trainer') need(data.trainers[o.id!], `map: unknown trainer ${o.id}`);
     if (o.type === 'npc') need(quests.npcs[o.id!], `map: unknown npc ${o.id}`);
     if (o.type === 'sign') need(zones.some((z) => z.id === o.zone), `map: sign for unknown zone ${o.zone}`);
   }

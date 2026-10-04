@@ -23,6 +23,7 @@ export interface Player {
   respawnAt: number;
   needsStarter: boolean;
   uniqueEncounter: { monster: string; level: number; zone: string } | null;
+  defeatedTrainers: Set<string>;
   battle: Battle | null;
   immuneSteps: number;
   lastMoveAt: number;
@@ -43,6 +44,7 @@ export function resetProgress(p: Player) {
   p.respawnAt = 0;
   p.needsStarter = true;
   p.uniqueEncounter = null;
+  p.defeatedTrainers = new Set();
   p.immuneSteps = 0;
   p.dirty = true;
 }
@@ -83,5 +85,6 @@ export function selfState(p: Player): SelfState {
     needsStarter: p.needsStarter,
     uniqueEncounter: p.uniqueEncounter,
     inBattle: p.battle?.id ?? null,
+    defeatedTrainers: [...p.defeatedTrainers],
   };
 }

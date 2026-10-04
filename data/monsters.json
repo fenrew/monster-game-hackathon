@@ -3,7 +3,7 @@
     "name": "Zapling", "type": "spark", "shape": "fox", "color": "#f4d03f",
     "base": { "hp": 40, "atk": 55, "def": 40, "spd": 75 },
     "catchRate": 0.45, "baseXp": 45,
-    "evolvesTo": "voltail", "evolveLevel": 14,
+    "evolvesTo": "voltail", "evolveLevel": 12,
     "learnset": [
       { "level": 1, "ability": "tackle" }, { "level": 1, "ability": "spark" }, { "level": 3, "ability": "guard" },
       { "level": 7, "ability": "static_burst" }, { "level": 10, "ability": "bulwark" }, { "level": 12, "ability": "thunder_fang" }
@@ -25,7 +25,7 @@
     "name": "Pebblit", "type": "stone", "shape": "rock", "color": "#a3896b",
     "base": { "hp": 55, "atk": 55, "def": 65, "spd": 35 },
     "catchRate": 0.45, "baseXp": 45,
-    "evolvesTo": "bouldurr", "evolveLevel": 14,
+    "evolvesTo": "bouldurr", "evolveLevel": 12,
     "learnset": [
       { "level": 1, "ability": "tackle" }, { "level": 1, "ability": "pebble_toss" }, { "level": 3, "ability": "guard" },
       { "level": 7, "ability": "harden" }, { "level": 9, "ability": "rockslide" }, { "level": 10, "ability": "bulwark" },
@@ -48,7 +48,7 @@
     "name": "Drizzlet", "type": "tide", "shape": "toad", "color": "#5dade2",
     "base": { "hp": 50, "atk": 55, "def": 50, "spd": 55 },
     "catchRate": 0.45, "baseXp": 45,
-    "evolvesTo": "torrentoad", "evolveLevel": 14,
+    "evolvesTo": "torrentoad", "evolveLevel": 12,
     "learnset": [
       { "level": 1, "ability": "tackle" }, { "level": 1, "ability": "splash_jet" }, { "level": 3, "ability": "guard" },
       { "level": 7, "ability": "mend" }, { "level": 9, "ability": "undertow" }, { "level": 11, "ability": "bulwark" },
@@ -71,6 +71,7 @@
     "name": "Fizzbit", "type": "spark", "shape": "moth", "color": "#f7dc6f",
     "base": { "hp": 35, "atk": 62, "def": 35, "spd": 85 },
     "catchRate": 0.5, "baseXp": 42,
+    "evolvesTo": "glimmoth", "evolveLevel": 16,
     "learnset": [
       { "level": 1, "ability": "quick_jab" }, { "level": 1, "ability": "spark" }, { "level": 5, "ability": "screech" },
       { "level": 8, "ability": "static_burst" }, { "level": 12, "ability": "thunder_fang" }, { "level": 16, "ability": "overvolt" }
@@ -81,6 +82,7 @@
     "name": "Cragmole", "type": "stone", "shape": "mole", "color": "#8d6e63",
     "base": { "hp": 60, "atk": 65, "def": 70, "spd": 45 },
     "catchRate": 0.45, "baseXp": 52,
+    "evolvesTo": "drillord", "evolveLevel": 16,
     "learnset": [
       { "level": 1, "ability": "tackle" }, { "level": 1, "ability": "pebble_toss" }, { "level": 4, "ability": "harden" },
       { "level": 8, "ability": "rockslide" }, { "level": 11, "ability": "guard" }, { "level": 14, "ability": "boulder_slam" },
@@ -92,6 +94,7 @@
     "name": "Puddlefin", "type": "tide", "shape": "fish", "color": "#76d7c4",
     "base": { "hp": 45, "atk": 45, "def": 45, "spd": 65 },
     "catchRate": 0.55, "baseXp": 38,
+    "evolvesTo": "mirelurk", "evolveLevel": 16,
     "learnset": [
       { "level": 1, "ability": "quick_jab" }, { "level": 1, "ability": "splash_jet" }, { "level": 4, "ability": "guard" },
       { "level": 7, "ability": "undertow" }, { "level": 11, "ability": "mend" }, { "level": 15, "ability": "tidal_lash" }
@@ -121,7 +124,7 @@
     "description": "Feeds on the glow of crystals. Its wing-dust tingles on the skin."
   },
   "aurorix": {
-    "name": "Aurorix", "type": "stone", "shape": "crystal", "color": "#48c9b0",
+    "name": "Aurorix", "type": "stone", "shape": "crystal", "color": "#48c9b0", "noFusion": true,
     "base": { "hp": 95, "atk": 100, "def": 90, "spd": 85 },
     "catchRate": 0.4, "baseXp": 150,
     "learnset": [
@@ -129,5 +132,58 @@
       { "level": 1, "ability": "focus" }, { "level": 18, "ability": "prism_crush" }, { "level": 22, "ability": "rockslide" }
     ],
     "description": "A living geode said to appear only to a trainer the crystals trust."
+  },
+  "drillord": {
+    "name": "Drillord", "type": "stone", "shape": "mole", "color": "#6d4c41",
+    "base": { "hp": 85, "atk": 92, "def": 88, "spd": 55 },
+    "catchRate": 0.2, "baseXp": 110,
+    "learnset": [
+      { "level": 1, "ability": "tackle" }, { "level": 1, "ability": "pebble_toss" }, { "level": 4, "ability": "harden" },
+      { "level": 8, "ability": "rockslide" }, { "level": 11, "ability": "guard" }, { "level": 14, "ability": "boulder_slam" },
+      { "level": 18, "ability": "tectonic" }, { "level": 20, "ability": "rally" }
+    ],
+    "description": "A cragmole that grew a spiralling drill-snout. It can bore through a hill in a night."
+  },
+  "thundrake": {
+    "name": "Thundrake", "type": "spark", "shape": "drake", "color": "#f7dc6f", "fusion": true,
+    "base": { "hp": 80, "atk": 95, "def": 70, "spd": 95 },
+    "catchRate": 0.2, "baseXp": 130,
+    "learnset": [ { "level": 1, "ability": "spark" }, { "level": 1, "ability": "guard" }, { "level": 1, "ability": "static_burst" }, { "level": 1, "ability": "thunder_fang" }, { "level": 14, "ability": "rally" }, { "level": 18, "ability": "overvolt" } ],
+    "description": "Two sparks fused into a storm with wings. Its roar arrives a second after its lightning."
+  },
+  "voltgeode": {
+    "name": "Voltgeode", "type": "spark", "shape": "crystal", "color": "#d4ac0d", "fusion": true,
+    "base": { "hp": 80, "atk": 95, "def": 90, "spd": 75 },
+    "catchRate": 0.2, "baseXp": 130,
+    "learnset": [ { "level": 1, "ability": "spark" }, { "level": 1, "ability": "pebble_toss" }, { "level": 1, "ability": "harden" }, { "level": 1, "ability": "thunder_fang" }, { "level": 14, "ability": "bulwark" }, { "level": 18, "ability": "overvolt" } ],
+    "description": "A geode with a beating electric heart. Lightning crawls along its facets."
+  },
+  "golemar": {
+    "name": "Golemar", "type": "stone", "shape": "brute", "color": "#95a5a6", "fusion": true,
+    "base": { "hp": 100, "atk": 90, "def": 105, "spd": 40 },
+    "catchRate": 0.2, "baseXp": 130,
+    "learnset": [ { "level": 1, "ability": "pebble_toss" }, { "level": 1, "ability": "harden" }, { "level": 1, "ability": "bulwark" }, { "level": 1, "ability": "boulder_slam" }, { "level": 15, "ability": "rockslide" }, { "level": 18, "ability": "tectonic" } ],
+    "description": "Two stone monsters fused into a walking fortress. Nothing gets past it."
+  },
+  "bogrock": {
+    "name": "Bogrock", "type": "stone", "shape": "toad", "color": "#7d6608", "fusion": true,
+    "base": { "hp": 95, "atk": 85, "def": 95, "spd": 60 },
+    "catchRate": 0.2, "baseXp": 130,
+    "learnset": [ { "level": 1, "ability": "pebble_toss" }, { "level": 1, "ability": "splash_jet" }, { "level": 1, "ability": "mend" }, { "level": 1, "ability": "boulder_slam" }, { "level": 15, "ability": "undertow" }, { "level": 18, "ability": "tectonic" } ],
+    "description": "Half boulder, half swamp. It sinks into mud and waits for days."
+  },
+  "abyssqual": {
+    "name": "Abyssqual", "type": "tide", "shape": "fish", "color": "#1a5276", "fusion": true,
+    "base": { "hp": 90, "atk": 90, "def": 80, "spd": 75 },
+    "catchRate": 0.2, "baseXp": 130,
+    "learnset": [ { "level": 1, "ability": "splash_jet" }, { "level": 1, "ability": "guard" }, { "level": 1, "ability": "undertow" }, { "level": 1, "ability": "tidal_lash" }, { "level": 15, "ability": "soothing_rain" }, { "level": 18, "ability": "maelstrom" } ],
+    "description": "A fused leviathan pup from the deepest trench. Its eyes glow in the dark."
+  },
+  "stormfin": {
+    "name": "Stormfin", "type": "tide", "shape": "fish", "color": "#48c9b0", "fusion": true,
+    "base": { "hp": 75, "atk": 95, "def": 70, "spd": 100 },
+    "catchRate": 0.2, "baseXp": 130,
+    "learnset": [ { "level": 1, "ability": "splash_jet" }, { "level": 1, "ability": "spark" }, { "level": 1, "ability": "quick_jab" }, { "level": 1, "ability": "tidal_lash" }, { "level": 14, "ability": "static_burst" }, { "level": 18, "ability": "maelstrom" } ],
+    "description": "Water and lightning fused into one restless fish. It rides thunderstorms across the sea."
   }
 }

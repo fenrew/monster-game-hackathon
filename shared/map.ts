@@ -1,7 +1,7 @@
 import type { MapDef, MapObject, ZoneDef } from './types';
 
 /** Object types that occupy their tile. */
-const BLOCKING_OBJECTS = new Set(['heal', 'shop', 'npc', 'sign']);
+const BLOCKING_OBJECTS = new Set(['heal', 'shop', 'fusion', 'npc', 'sign', 'trainer']);
 
 /** Fast lookups over the shared map + zone data; used identically by server and client. */
 export class WorldMap {

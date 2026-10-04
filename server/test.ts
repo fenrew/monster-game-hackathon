@@ -5,6 +5,7 @@ import type { ServerMsg } from '../shared/types';
 import { Battle, BattleHost, BattleOutcome } from './battle';
 import { cfg, data, formulas, validateData, worldMap } from './data';
 import { createMonster, gainXp } from './monster';
+import { Game } from './game';
 import type { Player } from './player';
 
 let failures = 0;
@@ -22,7 +23,7 @@ function fakePlayer(id: string, species: string[], level: number): Player {
   return {
     id, token: id, name: id, color: '#fff', ws: { readyState: 1 } as never, disconnectedAt: 0, x: 0, y: 0,
     coins: 0, items: { potion: 5 }, party: species.map((s) => createMonster(s, level)), storage: [], quests: {}, rareLuck: 1,
-    down: false, respawnAt: 0, needsStarter: false, uniqueEncounter: null, battle: null, immuneSteps: 0,
+    down: false, respawnAt: 0, needsStarter: false, uniqueEncounter: null, defeatedTrainers: new Set(), battle: null, immuneSteps: 0,
     lastMoveAt: 0, moveBudget: 3, lastChatAt: 0, dirty: false,
   };
 }
@@ -47,9 +48,9 @@ test('data files validate', () => {
   const errors = validateData();
   assert.deepStrictEqual(errors, []);
 });
-test('roster is 10-12 monsters over 3 types', () => {
+test('roster has 10+ monsters over 3 types', () => {
   const n = Object.keys(data.monsters).length;
-  assert.ok(n >= 10 && n <= 12, `${n} monsters`);
+  assert.ok(n >= 10, `${n} monsters`);
   const types = new Set(Object.values(data.monsters).map((m) => m.type));
   assert.strictEqual(types.size, 3);
 });
@@ -156,6 +157,8 @@ test('a successful catch ends the fight and belongs to the thrower', () => {
   }
   assert.strictEqual(host.outcome?.result, 'caught');
   assert.strictEqual(host.outcome?.caughtBy, p);
+  assert.ok(b.hits.some((x) => x.kind === 'ability' && /% chance/.test(x.text ?? '')), 'orb throw should announce its odds');
+  assert.ok(b.hits.some((x) => x.kind === 'info' && x.text === 'Gotcha!'));
 });
 test('a player whose monsters all faint is wiped', () => {
   const host = new FakeHost();
@@ -178,6 +181,62 @@ test('boss targets scale with the player-count snapshot', () => {
   b.start();
   const view = (host.messages.filter((m) => m.t === 'battle').pop() as Extract<ServerMsg, { t: 'battle' }>).battle;
   assert.ok(view.intent?.includes('4 targets'), view.intent ?? '');
+});
+
+test('rounds report hits for floating damage numbers', () => {
+  const host = new FakeHost();
+  const p = fakePlayer('a', ['zapling'], 10);
+  const wild = createMonster('drizzlet', 3);
+  wild.maxHp = wild.hp = 9999;
+  const b = new Battle(host, 'wild', data.zones[2], 0, 0, [Battle.wildCombatant(wild)]);
+  b.addParticipant(p);
+  b.start();
+  b.choose(p, { kind: 'ability', abilityId: 'spark' });
+  resolveRound(b);
+  const view = (host.messages.filter((m) => m.t === 'battle').pop() as Extract<ServerMsg, { t: 'battle' }>).battle;
+  assert.ok(view.hits.some((h) => h.target === wild.uid && (h.kind === 'dmg' || h.kind === 'miss')), JSON.stringify(view.hits));
+});
+test('trainers send out their team one by one; no fleeing or catching', () => {
+  const host = new FakeHost();
+  const p = fakePlayer('a', ['bouldurr'], 30);
+  p.items = { orb: 3 };
+  const def = data.trainers.pip;
+  const team = def.team.map((t) => Battle.trainerCombatant(createMonster(t.monster, t.level), def.name));
+  const b = new Battle(host, 'trainer', data.zones[2], 0, 0, [team[0]]);
+  b.trainer = { id: 'pip', def };
+  b.reserve.push(...team.slice(1));
+  b.addParticipant(p);
+  b.start();
+  assert.ok(b.choose(p, { kind: 'flee' }), 'flee should be refused');
+  assert.ok(b.choose(p, { kind: 'item', itemId: 'orb', targetId: team[0].id }), 'catching should be refused');
+  for (let i = 0; i < 30 && !b.ended; i++) {
+    b.choose(p, { kind: 'ability', abilityId: 'boulder_slam' });
+    resolveRound(b);
+  }
+  assert.strictEqual(host.outcome?.result, 'victory');
+  assert.strictEqual(host.outcome?.defeated.length, def.team.length);
+});
+
+test('the Fusion Lab fuses two monsters by type pair, for coins', () => {
+  const game = new Game();
+  const lab = data.map.objects.find((o) => o.type === 'fusion')!;
+  const p = fakePlayer('f', ['zapling', 'drizzlet', 'pebblit'], 10);
+  p.ws = null;
+  p.x = lab.x - 1;
+  p.y = lab.y;
+  game.players.set(p.id, p);
+  const fuse = (a: string, b: string) => (game as unknown as { handle(p: Player, m: unknown): void }).handle(p, { t: 'fuse', a, b });
+  p.coins = 50;
+  fuse(p.party[0].uid, p.party[1].uid);
+  assert.strictEqual(p.party.length, 3, 'too poor: nothing should happen');
+  p.coins = 1000;
+  fuse(p.party[0].uid, p.party[1].uid);
+  assert.deepStrictEqual(p.party.map((m) => m.species), ['stormfin', 'pebblit']);
+  assert.strictEqual(p.party[0].level, 10);
+  assert.strictEqual(p.coins, 1000 - (100 + 20 * 10));
+  p.x = 0;
+  fuse(p.party[0].uid, p.party[1].uid);
+  assert.strictEqual(p.party.length, 2, 'away from the lab: nothing should happen');
 });
 
 // ---------------------------------------------------------------- balance sim

@@ -3,6 +3,7 @@ import type WebSocket from 'ws';
 import type {
   BossClock, ClientMsg, QuestDef, ServerMsg, ToastKind, WorldState, ZoneDef,
 } from '../shared/types';
+import { fusionBlocker, fusionCost, fusionLevel, fusionResult } from '../shared/fusion';
 import { Battle, BattleHost, BattleOutcome, Combatant } from './battle';
 import { cfg, data, formulas, worldMap, zoneById } from './data';
 import { computeStats, createMonster, gainXp, healFull, Monster, monsterName } from './monster';
@@ -12,6 +13,7 @@ const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#e67e22', '#1abc9c'
 const randInt = (a: number, b: number) => a + Math.floor(Math.random() * (b - a + 1));
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 const cheb = (ax: number, ay: number, bx: number, by: number) => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
+const DIRS: Record<string, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 type QuestEvent =
   | { kind: 'defeat'; zone: string; species: string; type: string }
@@ -104,6 +106,14 @@ export class Game implements BattleHost {
       case 'partyStore': return this.partyOp(p, 'store', String(msg.uid));
       case 'partyWithdraw': return this.partyOp(p, 'withdraw', String(msg.uid));
       case 'chat': return this.chat(p, String(msg.text ?? ''));
+      case 'fuse': return this.fuse(p, String(msg.a), String(msg.b));
+      case 'challenge': {
+        const id = String(msg.id);
+        if (!this.near(p, 'trainer', id) || p.battle || p.down) return;
+        if (p.defeatedTrainers.has(id)) return this.toast(p, `${data.trainers[id].name}: "${data.trainers[id].defeat}"`, 'info');
+        this.startTrainerBattle(p, id);
+        return;
+      }
     }
   }
 
@@ -121,7 +131,7 @@ export class Game implements BattleHost {
       x: pos.x,
       y: pos.y,
       coins: 0, items: {}, party: [], storage: [], quests: {}, rareLuck: 1,
-      down: false, respawnAt: 0, needsStarter: true, uniqueEncounter: null,
+      down: false, respawnAt: 0, needsStarter: true, uniqueEncounter: null, defeatedTrainers: new Set(),
       battle: null, immuneSteps: 0, lastMoveAt: 0, moveBudget: 3, lastChatAt: 0, dirty: true,
     };
     resetProgress(p);
@@ -230,7 +240,7 @@ export class Game implements BattleHost {
         state: p.down ? 'down' : p.battle ? 'battle' : 'free',
       })),
       battles: [...this.battles].map((b) => ({
-        id: b.id, x: b.x, y: b.y, kind: b.kind, count: b.participants.size, joinable: b.joinable && b.kind === 'wild',
+        id: b.id, x: b.x, y: b.y, kind: b.kind, count: b.participants.size, joinable: b.joinable && (b.kind === 'wild' || b.kind === 'trainer'),
       })),
       boss: this.bossClock(),
       connected: this.connectedCount(),
@@ -292,7 +302,7 @@ export class Game implements BattleHost {
     // Walking into an active wild fight joins it (not right after leaving one, so fleeing sticks).
     for (const b of this.battles) {
       if (p.immuneSteps > 0) break;
-      if (b.kind === 'wild' && b.joinable && cheb(b.x, b.y, x, y) <= cfg.combat.joinRadius) {
+      if ((b.kind === 'wild' || b.kind === 'trainer') && b.joinable && cheb(b.x, b.y, x, y) <= cfg.combat.joinRadius) {
         if (b.addParticipant(p)) {
           this.toast(p, 'You joined the fight!', 'info');
           b.broadcast();
@@ -301,10 +311,44 @@ export class Game implements BattleHost {
       }
     }
 
+    // Stepping into an undefeated trainer's line of sight starts a battle, Pokémon-style.
+    const spotter = this.trainerSpotting(p);
+    if (spotter) { this.startTrainerBattle(p, spotter); return; }
+
     if (p.immuneSteps > 0) { p.immuneSteps--; return; }
     if (!worldMap.canEncounter(x, y)) return;
     const zone = worldMap.zoneAt(x, y)!;
     if (Math.random() < (zone.encounterRate ?? 0.1)) this.startWildEncounter(p, zone);
+  }
+
+  /** The id of an undefeated trainer whose line of sight the player is standing in, if any. */
+  private trainerSpotting(p: Player): string | null {
+    for (const o of worldMap.objectsOfType('trainer')) {
+      if (p.defeatedTrainers.has(o.id!)) continue;
+      const t = data.trainers[o.id!];
+      const [dx, dy] = DIRS[t.facing];
+      for (let i = 1; i <= t.sight; i++) {
+        const tx = o.x + dx * i, ty = o.y + dy * i;
+        if (!worldMap.isWalkable(tx, ty)) break; // walls and objects block the view
+        if (tx === p.x && ty === p.y) return o.id!;
+      }
+    }
+    return null;
+  }
+
+  startTrainerBattle(p: Player, id: string): Battle | null {
+    const def = data.trainers[id];
+    if (!def || p.battle || !p.party.some((m) => m.hp > 0)) return null;
+    const zone = worldMap.zoneAt(p.x, p.y) ?? data.zones[data.zones.length - 1];
+    const team = def.team.map((t) => Battle.trainerCombatant(createMonster(t.monster, t.level), def.name));
+    const battle = new Battle(this, 'trainer', zone, p.x, p.y, [team[0]]);
+    battle.trainer = { id, def };
+    battle.reserve.push(...team.slice(1));
+    battle.addParticipant(p);
+    this.toast(p, `❗ ${def.name} wants to battle!`, 'boss');
+    this.battles.add(battle);
+    battle.start();
+    return battle;
   }
 
   private rollSpecies(zone: ZoneDef, luck: number): string {
@@ -373,7 +417,7 @@ export class Game implements BattleHost {
     }
     p.down = true;
     p.respawnAt = Date.now() + cfg.respawnSeconds * 1000;
-    this.send(p, { t: 'battleEnd', id: battle.id, result: 'wiped', summary: lines });
+    this.send(p, { t: 'battleEnd', id: battle.id, result: 'wiped', summary: lines, hits: battle.hits });
   }
 
   onBattleEnd(battle: Battle, o: BattleOutcome) {
@@ -386,18 +430,29 @@ export class Game implements BattleHost {
         const lines: string[] = [];
         let xp = 0;
         let coins = 0;
+        const trainer = battle.trainer;
         for (const e of o.defeated) {
           xp += formulas.xpYield({ baseXp: data.monsters[e.species].baseXp, enemyLevel: e.monster.level });
-          if (battle.zone.coins) coins += randInt(battle.zone.coins[0], battle.zone.coins[1]);
+          if (battle.zone.coins && !trainer) coins += randInt(battle.zone.coins[0], battle.zone.coins[1]);
           this.questEvent(player, { kind: 'defeat', zone: battle.zone.id, species: e.species, type: e.type });
         }
         if (o.caught && o.caughtBy === player) {
           xp += formulas.xpYield({ baseXp: data.monsters[o.caught.species].baseXp, enemyLevel: o.caught.level });
         }
+        if (trainer && o.result === 'victory') {
+          xp *= cfg.combat.trainerXpMult;
+          coins += trainer.def.rewards.coins;
+          player.defeatedTrainers.add(trainer.id);
+          lines.push(`${trainer.def.name}: "${trainer.def.defeat}"`);
+          for (const [item, n] of Object.entries(trainer.def.rewards.items ?? {})) {
+            player.items[item] = (player.items[item] ?? 0) + n;
+            lines.push(`Got ${n} × ${data.items[item].name}!`);
+          }
+        }
         xp = Math.round(xp);
         if (xp > 0) lines.push(...this.awardXp(player, uids, xp));
         if (coins > 0) { player.coins += coins; lines.push(`+${coins} coins`); }
-        if (o.result === 'victory') {
+        if (o.result === 'victory' && !trainer) {
           for (const l of battle.zone.loot ?? []) {
             if (Math.random() < l.chance) {
               player.items[l.item] = (player.items[l.item] ?? 0) + 1;
@@ -430,6 +485,7 @@ export class Game implements BattleHost {
       this.send(player, {
         t: 'battleEnd', id: battle.id, result: headline,
         summary: [...o.summary, ...(perPlayer.get(player) ?? [])],
+        hits: battle.hits,
       });
     }
   }
@@ -543,6 +599,7 @@ export class Game implements BattleHost {
         this.send(p, {
           t: 'battleEnd', id: battle.id, result: won ? `${def.name} defeated!` : 'The boss won...',
           summary: [...o.summary, ...lines],
+          hits: battle.hits,
         });
       } else if (won) {
         this.toast(p, `${def.name} was defeated while you were down. You still share the rewards!`, 'good');
@@ -648,6 +705,35 @@ export class Game implements BattleHost {
     if (p.items[itemId] <= 0) delete p.items[itemId];
     p.dirty = true;
     this.toast(p, `Used ${item.name} on ${monsterName(m)}.`, 'good');
+  }
+
+  /** Fusion Lab: two monsters (party or storage) + coins -> one fusion-only monster. */
+  private fuse(p: Player, uidA: string, uidB: string) {
+    if (p.battle || !this.near(p, 'fusion')) return;
+    if (uidA === uidB) return this.toast(p, 'Pick two different monsters.', 'bad');
+    const all = allMonsters(p);
+    const a = all.find((m) => m.uid === uidA), b = all.find((m) => m.uid === uidB);
+    if (!a || !b) return;
+    for (const m of [a, b]) {
+      const why = fusionBlocker(data, m.species, m.level);
+      if (why) return this.toast(p, `${monsterName(m)} can't be fused: ${why}.`, 'bad');
+    }
+    const result = fusionResult(data, a.species, b.species);
+    if (!result) return this.toast(p, 'The fuser sputters: no recipe for that pair.', 'bad');
+    const level = fusionLevel(data, a.level, b.level);
+    const cost = fusionCost(data, level);
+    if (p.coins < cost) return this.toast(p, `Fusing costs ${cost} coins. You have ${p.coins}.`, 'bad');
+
+    p.coins -= cost;
+    const slot = p.party.indexOf(a) >= 0 ? p.party.indexOf(a) : p.party.indexOf(b);
+    p.party = p.party.filter((m) => m !== a && m !== b);
+    p.storage = p.storage.filter((m) => m !== a && m !== b);
+    const fused = createMonster(result, level);
+    if (slot >= 0) p.party.splice(Math.min(slot, p.party.length), 0, fused);
+    else addMonster(p, fused);
+    p.dirty = true;
+    this.toast(p, `⚗ ${monsterName(a)} + ${monsterName(b)} fused into ${monsterName(fused)} (Lv ${level})! -${cost} coins`, 'level');
+    this.questEvent(p, { kind: 'level' });
   }
 
   private partyOp(p: Player, op: 'lead' | 'store' | 'withdraw', uid: string) {
