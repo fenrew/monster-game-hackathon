@@ -1,0 +1,52 @@
+[
+  {
+    "id": "gravemaw", "name": "Gravemaw", "title": "The Stone Glutton",
+    "type": "stone", "shape": "brute", "color": "#8b5a2b",
+    "level": 12, "baseHp": 135, "stats": { "atk": 20, "def": 18, "spd": 35 },
+    "rewards": { "xp": 160, "coins": 150, "items": { "potion": 2 } },
+    "moves": {
+      "maul":  { "name": "Maul",  "type": "stone", "power": 50, "accuracy": 0.95, "targets": "scaled" },
+      "quake": { "name": "Quake", "type": "stone", "power": 75, "accuracy": 1, "targets": "all",
+                 "telegraph": "Gravemaw rears up and the ground trembles... QUAKE hits EVERYONE next round!" }
+    },
+    "rotation": ["maul", "maul", "quake"],
+    "phases": []
+  },
+  {
+    "id": "vyrn", "name": "Stormcaller Vyrn", "title": "Eye of the Tempest",
+    "type": "spark", "shape": "bird", "color": "#5b6ee1",
+    "level": 16, "baseHp": 210, "stats": { "atk": 26, "def": 24, "spd": 75 },
+    "rewards": { "xp": 260, "coins": 250, "items": { "super_potion": 1, "revive": 1 } },
+    "moves": {
+      "bolt":         { "name": "Bolt",            "type": "spark", "power": 50, "accuracy": 0.95, "targets": "scaled" },
+      "chain":        { "name": "Chain Lightning", "type": "spark", "power": 40, "accuracy": 0.9,  "targets": "scaled", "extraTargets": 1 },
+      "static_field": { "name": "Static Field",    "type": "spark", "power": 15, "accuracy": 1,    "targets": "all", "debuff": { "spd": -1 } },
+      "overcharge":   { "name": "Overcharge",      "type": "spark", "power": 95, "accuracy": 1,    "targets": "all",
+                        "telegraph": "Vyrn spreads its wings and the air crackles... OVERCHARGE hits EVERYONE next round!" }
+    },
+    "rotation": ["bolt", "chain", "static_field", "bolt", "overcharge"],
+    "phases": [
+      { "belowHpPct": 0.5, "message": "Vyrn shrieks! The storm intensifies: its pattern speeds up.",
+        "rotation": ["chain", "bolt", "overcharge"] }
+    ]
+  },
+  {
+    "id": "leviathrax", "name": "Leviathrax", "title": "The Drowned King",
+    "type": "tide", "shape": "serpent", "color": "#16a085",
+    "level": 20, "baseHp": 215, "stats": { "atk": 27, "def": 28, "spd": 55 },
+    "rewards": { "xp": 400, "coins": 400, "items": {} },
+    "moves": {
+      "crash":     { "name": "Crushing Wave", "type": "tide", "power": 55,  "accuracy": 0.95, "targets": "scaled" },
+      "whirlpool": { "name": "Whirlpool",     "type": "tide", "power": 40,  "accuracy": 1,    "targets": "all" },
+      "regen":     { "name": "Tidal Renewal", "type": "tide", "power": 0,   "accuracy": 1,    "targets": "self", "healPct": 0.08 },
+      "deluge":    { "name": "Deluge",        "type": "tide", "power": 100, "accuracy": 1,    "targets": "all",
+                     "telegraph": "Leviathrax draws the sea into itself... DELUGE hits EVERYONE next round!" }
+    },
+    "rotation": ["crash", "whirlpool", "crash", "deluge"],
+    "phases": [
+      { "belowHpPct": 0.5, "message": "Leviathrax ENRAGES! It strikes harder and hits more targets.",
+        "atkMult": 1.25, "extraTargets": 1,
+        "rotation": ["crash", "regen", "deluge", "crash", "whirlpool"] }
+    ]
+  }
+]

@@ -1,0 +1,133 @@
+{
+  "zapling": {
+    "name": "Zapling", "type": "spark", "shape": "fox", "color": "#f4d03f",
+    "base": { "hp": 40, "atk": 55, "def": 40, "spd": 75 },
+    "catchRate": 0.45, "baseXp": 45,
+    "evolvesTo": "voltail", "evolveLevel": 14,
+    "learnset": [
+      { "level": 1, "ability": "tackle" }, { "level": 1, "ability": "spark" }, { "level": 3, "ability": "guard" },
+      { "level": 7, "ability": "static_burst" }, { "level": 10, "ability": "bulwark" }, { "level": 12, "ability": "thunder_fang" }
+    ],
+    "description": "A jittery fox kit whose tail sheds sparks when it is excited."
+  },
+  "voltail": {
+    "name": "Voltail", "type": "spark", "shape": "fox", "color": "#f1a90f",
+    "base": { "hp": 60, "atk": 82, "def": 55, "spd": 100 },
+    "catchRate": 0.2, "baseXp": 95,
+    "learnset": [
+      { "level": 1, "ability": "tackle" }, { "level": 1, "ability": "spark" }, { "level": 3, "ability": "guard" },
+      { "level": 7, "ability": "static_burst" }, { "level": 10, "ability": "bulwark" }, { "level": 12, "ability": "thunder_fang" },
+      { "level": 17, "ability": "rally" }, { "level": 20, "ability": "overvolt" }
+    ],
+    "description": "Its three tails act as lightning rods. It is fiercely protective of its pack."
+  },
+  "pebblit": {
+    "name": "Pebblit", "type": "stone", "shape": "rock", "color": "#a3896b",
+    "base": { "hp": 55, "atk": 55, "def": 65, "spd": 35 },
+    "catchRate": 0.45, "baseXp": 45,
+    "evolvesTo": "bouldurr", "evolveLevel": 14,
+    "learnset": [
+      { "level": 1, "ability": "tackle" }, { "level": 1, "ability": "pebble_toss" }, { "level": 3, "ability": "guard" },
+      { "level": 7, "ability": "harden" }, { "level": 9, "ability": "rockslide" }, { "level": 10, "ability": "bulwark" },
+      { "level": 12, "ability": "boulder_slam" }
+    ],
+    "description": "A pebble that learned to roll on purpose. Sleeps in riverbeds."
+  },
+  "bouldurr": {
+    "name": "Bouldurr", "type": "stone", "shape": "rock", "color": "#7f6650",
+    "base": { "hp": 85, "atk": 80, "def": 95, "spd": 40 },
+    "catchRate": 0.2, "baseXp": 95,
+    "learnset": [
+      { "level": 1, "ability": "tackle" }, { "level": 1, "ability": "pebble_toss" }, { "level": 3, "ability": "guard" },
+      { "level": 7, "ability": "harden" }, { "level": 9, "ability": "rockslide" }, { "level": 10, "ability": "bulwark" },
+      { "level": 12, "ability": "boulder_slam" }, { "level": 16, "ability": "screech" }, { "level": 18, "ability": "tectonic" }
+    ],
+    "description": "A purring landslide. Travellers shelter behind it during storms."
+  },
+  "drizzlet": {
+    "name": "Drizzlet", "type": "tide", "shape": "toad", "color": "#5dade2",
+    "base": { "hp": 50, "atk": 55, "def": 50, "spd": 55 },
+    "catchRate": 0.45, "baseXp": 45,
+    "evolvesTo": "torrentoad", "evolveLevel": 14,
+    "learnset": [
+      { "level": 1, "ability": "tackle" }, { "level": 1, "ability": "splash_jet" }, { "level": 3, "ability": "guard" },
+      { "level": 7, "ability": "mend" }, { "level": 9, "ability": "undertow" }, { "level": 11, "ability": "bulwark" },
+      { "level": 13, "ability": "tidal_lash" }
+    ],
+    "description": "A tadpole-frog that carries a tiny raincloud wherever it hops."
+  },
+  "torrentoad": {
+    "name": "Torrentoad", "type": "tide", "shape": "toad", "color": "#2e86c1",
+    "base": { "hp": 80, "atk": 75, "def": 70, "spd": 70 },
+    "catchRate": 0.2, "baseXp": 95,
+    "learnset": [
+      { "level": 1, "ability": "tackle" }, { "level": 1, "ability": "splash_jet" }, { "level": 3, "ability": "guard" },
+      { "level": 7, "ability": "mend" }, { "level": 9, "ability": "undertow" }, { "level": 11, "ability": "bulwark" },
+      { "level": 13, "ability": "tidal_lash" }, { "level": 16, "ability": "soothing_rain" }, { "level": 19, "ability": "maelstrom" }
+    ],
+    "description": "Its croak summons downpours. Farmers leave it gifts during droughts."
+  },
+  "fizzbit": {
+    "name": "Fizzbit", "type": "spark", "shape": "moth", "color": "#f7dc6f",
+    "base": { "hp": 35, "atk": 62, "def": 35, "spd": 85 },
+    "catchRate": 0.5, "baseXp": 42,
+    "learnset": [
+      { "level": 1, "ability": "quick_jab" }, { "level": 1, "ability": "spark" }, { "level": 5, "ability": "screech" },
+      { "level": 8, "ability": "static_burst" }, { "level": 12, "ability": "thunder_fang" }, { "level": 16, "ability": "overvolt" }
+    ],
+    "description": "A static-charged moth that dances around lanterns."
+  },
+  "cragmole": {
+    "name": "Cragmole", "type": "stone", "shape": "mole", "color": "#8d6e63",
+    "base": { "hp": 60, "atk": 65, "def": 70, "spd": 45 },
+    "catchRate": 0.45, "baseXp": 52,
+    "learnset": [
+      { "level": 1, "ability": "tackle" }, { "level": 1, "ability": "pebble_toss" }, { "level": 4, "ability": "harden" },
+      { "level": 8, "ability": "rockslide" }, { "level": 11, "ability": "guard" }, { "level": 14, "ability": "boulder_slam" },
+      { "level": 18, "ability": "tectonic" }
+    ],
+    "description": "Tunnels through bedrock with diamond-hard claws."
+  },
+  "puddlefin": {
+    "name": "Puddlefin", "type": "tide", "shape": "fish", "color": "#76d7c4",
+    "base": { "hp": 45, "atk": 45, "def": 45, "spd": 65 },
+    "catchRate": 0.55, "baseXp": 38,
+    "learnset": [
+      { "level": 1, "ability": "quick_jab" }, { "level": 1, "ability": "splash_jet" }, { "level": 4, "ability": "guard" },
+      { "level": 7, "ability": "undertow" }, { "level": 11, "ability": "mend" }, { "level": 15, "ability": "tidal_lash" }
+    ],
+    "description": "Flops between puddles after rain. Surprisingly hard to pin down."
+  },
+  "mirelurk": {
+    "name": "Mirelurk", "type": "tide", "shape": "drake", "color": "#1f618d",
+    "base": { "hp": 85, "atk": 85, "def": 80, "spd": 60 },
+    "catchRate": 0.15, "baseXp": 120,
+    "learnset": [
+      { "level": 1, "ability": "splash_jet" }, { "level": 1, "ability": "guard" }, { "level": 10, "ability": "undertow" },
+      { "level": 12, "ability": "tidal_lash" }, { "level": 14, "ability": "bulwark" }, { "level": 16, "ability": "soothing_rain" },
+      { "level": 18, "ability": "maelstrom" }
+    ],
+    "description": "A rarely-seen marsh drake. Only its eyes show above the water."
+  },
+  "glimmoth": {
+    "name": "Glimmoth", "type": "spark", "shape": "moth", "color": "#bb8fce",
+    "base": { "hp": 70, "atk": 90, "def": 60, "spd": 95 },
+    "catchRate": 0.15, "baseXp": 120,
+    "learnset": [
+      { "level": 1, "ability": "spark" }, { "level": 1, "ability": "screech" }, { "level": 10, "ability": "static_burst" },
+      { "level": 13, "ability": "thunder_fang" }, { "level": 15, "ability": "focus" }, { "level": 17, "ability": "rally" },
+      { "level": 19, "ability": "overvolt" }
+    ],
+    "description": "Feeds on the glow of crystals. Its wing-dust tingles on the skin."
+  },
+  "aurorix": {
+    "name": "Aurorix", "type": "stone", "shape": "crystal", "color": "#48c9b0",
+    "base": { "hp": 95, "atk": 100, "def": 90, "spd": 85 },
+    "catchRate": 0.4, "baseXp": 150,
+    "learnset": [
+      { "level": 1, "ability": "pebble_toss" }, { "level": 1, "ability": "aurora_veil" }, { "level": 1, "ability": "boulder_slam" },
+      { "level": 1, "ability": "focus" }, { "level": 18, "ability": "prism_crush" }, { "level": 22, "ability": "rockslide" }
+    ],
+    "description": "A living geode said to appear only to a trainer the crystals trust."
+  }
+}

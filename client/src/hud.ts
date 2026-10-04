@@ -1,0 +1,283 @@
+import type { MapObject, ToastKind, ZoneDef } from '../../shared/types';
+import { recommendedLabel, zoneLevelLabel } from '../../shared/map';
+import { $, bar, clear, fmtTime, h } from './dom';
+import { closeModal, interact, openBag, openHelp, openParty, openQuests } from './menus';
+import { net } from './net';
+import { portraitFor, store } from './state';
+
+const MINI = 4; // minimap pixels per tile
+let miniBase: HTMLCanvasElement;
+
+export function initHud() {
+  buildButtons();
+  buildMinimap();
+  initChat();
+  store.on('world', renderTopbar);
+  store.on('self', () => { renderParty(); renderTracker(); renderDown(); });
+  store.on('zone', (z: ZoneDef) => { showBanner(z); renderZoneInfo(z); });
+  store.on('near', renderHint);
+  store.on('toast', toast);
+  store.on('chat', addChat);
+  store.on('victory', showVictory);
+  setInterval(() => { renderDown(); renderVictory(); }, 250);
+  setInterval(drawMinimap, 200);
+
+  // Clicked buttons keep focus, and Space would click them again: drop focus after each click.
+  document.addEventListener('click', (e) => { if (e.target instanceof HTMLElement && e.target.closest('button')) (document.activeElement as HTMLElement | null)?.blur(); });
+  window.addEventListener('keydown', (e) => {
+    const typing = document.activeElement instanceof HTMLInputElement;
+    if (e.key === 'Escape') {
+      if (typing) (document.activeElement as HTMLInputElement).blur();
+      closeModal();
+      return;
+    }
+    if (typing) return;
+    if (e.key === 'Enter') {
+      if (store.modalOpen || store.battle) return;
+      e.preventDefault();
+      ($('chatinput') as HTMLInputElement).focus();
+      return;
+    }
+    if (store.battle || !store.self || store.self.needsStarter) return;
+    const k = e.key.toLowerCase();
+    if (k === 'e' || k === ' ') { e.preventDefault(); if (!store.modalOpen) interact(); }
+    else if (k === 'p') openParty();
+    else if (k === 'b') openBag();
+    else if (k === 'q') openQuests();
+    else if (k === 'h' || k === '?') openHelp();
+  });
+}
+
+// ------------------------------------------------------------ top bar
+
+function renderTopbar() {
+  const w = store.world;
+  if (!w) return;
+  const el = $('topbar');
+  const b = w.boss;
+  const pips = h('span', { class: 'pips', title: 'Bosses defeated' },
+    ...Array.from({ length: b.bossesToWin }, (_, i) => h('span', { class: i < b.bossesDefeated ? 'pip on' : 'pip' })));
+  let main: HTMLElement;
+  if (b.phase === 'countdown') {
+    const warn = b.secondsLeft <= store.data.config.boss.warningSeconds;
+    main = h('span', { class: warn ? 'clock warn' : 'clock' }, '☠ ', h('b', null, b.bossName), ' arrives in ', h('b', { class: 'time' }, fmtTime(b.secondsLeft)));
+  } else if (b.phase === 'fight') {
+    main = h('span', { class: 'clock fight' }, '⚔ BOSS FIGHT: ', h('b', null, b.bossName), store.self?.inBattle ? '' : ' (portal open in town)');
+  } else {
+    main = h('span', { class: 'clock win' }, '🏆 Victory! New run in ', h('b', null, fmtTime(b.secondsLeft)));
+  }
+  clear(el);
+  el.append(main, pips, h('span', { class: 'online' }, `👥 ${w.connected} online`));
+}
+
+// ------------------------------------------------------------ party + quest tracker
+
+function renderParty() {
+  const s = store.self;
+  const el = $('party');
+  clear(el);
+  if (!s) return;
+  el.append(h('div', { class: 'coins' }, `🪙 ${s.coins}`, h('span', { class: 'muted' }, `  ·  rare luck ×${s.rareLuck.toFixed(1)}`)));
+  s.party.forEach((m, i) => {
+    el.append(h('div', { class: `pcard${m.hp <= 0 ? ' fainted' : ''}${i === 0 ? ' lead' : ''}`, onclick: openParty, title: 'Open party (P)' },
+      h('div', { class: 'pic', html: portraitFor(m.species, 34) }),
+      h('div', { class: 'pinfo' },
+        h('div', { class: 'pname' }, m.name, h('span', { class: 'lv' }, ` Lv ${m.level}`)),
+        bar(m.hp, m.maxHp),
+        bar(m.xp, m.xpToNext, 'xp'))));
+  });
+}
+
+function renderTracker() {
+  const s = store.self;
+  const el = $('tracker');
+  clear(el);
+  if (!s) return;
+  const active = store.data.quests.quests.filter((q) => s.quests[q.id]?.state === 'active');
+  if (s.uniqueEncounter) {
+    const z = store.data.zones.find((z) => z.id === s.uniqueEncounter!.zone);
+    el.append(h('div', { class: 'tq unique' }, `✦ A unique monster awaits you in the ${z?.name}`));
+  }
+  for (const q of active) {
+    const st = s.quests[q.id];
+    const done = q.objectives.every((o, i) => st.progress[i] >= o.count);
+    el.append(h('div', { class: `tq${done ? ' done' : ''}` },
+      h('b', null, q.name),
+      done ? h('div', null, `✔ Return to ${store.data.quests.npcs[q.giver].name}`)
+        : h('div', null, q.objectives.map((o, i) => `${o.label} ${st.progress[i]}/${o.count}`).join(' · '))));
+  }
+}
+
+// ------------------------------------------------------------ minimap
+
+function tierShade(hex: string, f: number) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.round(((n >> 16) & 255) * f), g = Math.round(((n >> 8) & 255) * f), b = Math.round((n & 255) * f);
+  return `rgb(${r},${g},${b})`;
+}
+
+function buildMinimap() {
+  const { map } = store;
+  const c = $('minimap') as HTMLCanvasElement;
+  c.width = map.width * MINI;
+  c.height = map.height * MINI;
+  miniBase = document.createElement('canvas');
+  miniBase.width = c.width;
+  miniBase.height = c.height;
+  const ctx = miniBase.getContext('2d')!;
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      const z = map.zoneAt(x, y);
+      const t = map.tile(x, y);
+      const tier = z?.tierColor ?? '#666666';
+      ctx.fillStyle = t === '~' ? '#1d4f86'
+        : !map.isWalkable(x, y) ? tierShade(tier, 0.35)
+        : map.isGrass(x, y) ? tierShade(tier, 0.95)
+        : tierShade(tier, 0.7);
+      ctx.fillRect(x * MINI, y * MINI, MINI, MINI);
+    }
+  }
+}
+
+function drawMinimap() {
+  const c = $('minimap') as HTMLCanvasElement;
+  const ctx = c.getContext('2d')!;
+  ctx.drawImage(miniBase, 0, 0);
+  const w = store.world;
+  if (!w) return;
+  const blink = Math.floor(Date.now() / 400) % 2 === 0;
+  for (const b of w.battles) {
+    if (b.kind === 'boss' || !blink) continue;
+    ctx.fillStyle = '#ff3b3b';
+    ctx.fillRect(b.x * MINI - 3, b.y * MINI - 3, MINI + 6, MINI + 6);
+  }
+  if (w.boss.phase === 'fight') {
+    const p = store.map.firstObject('portal');
+    ctx.fillStyle = blink ? '#e0b0ff' : '#9b59b6';
+    ctx.fillRect(p.x * MINI - 2, p.y * MINI - 2, MINI + 4, MINI + 4);
+  }
+  for (const p of w.players) {
+    if (p.id === store.myId) continue;
+    ctx.fillStyle = p.state === 'down' ? '#777' : p.color;
+    ctx.fillRect(p.x * MINI - 1, p.y * MINI - 1, MINI + 2, MINI + 2);
+  }
+  ctx.fillStyle = '#000';
+  ctx.fillRect(store.pos.x * MINI - 2, store.pos.y * MINI - 2, MINI + 4, MINI + 4);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(store.pos.x * MINI - 1, store.pos.y * MINI - 1, MINI + 2, MINI + 2);
+}
+
+function renderZoneInfo(z: ZoneDef) {
+  const el = $('zoneinfo');
+  clear(el);
+  el.style.borderLeftColor = z.tierColor;
+  el.append(h('b', null, z.name), h('div', { class: 'muted' },
+    z.kind === 'safe' ? 'Safe zone' : [zoneLevelLabel(z), recommendedLabel(z.recommended), z.hotspot ? 'hotspot' : ''].filter(Boolean).join(' · ')));
+}
+
+// ------------------------------------------------------------ banner, hint, toasts
+
+let bannerTimer = 0;
+function showBanner(z: ZoneDef) {
+  const el = $('banner');
+  clear(el);
+  const detail = z.kind === 'safe' ? 'Safe zone'
+    : z.kind === 'arena' ? 'Boss Arena'
+    : [zoneLevelLabel(z), recommendedLabel(z.recommended), z.hotspot ? 'encounters everywhere!' : ''].filter(Boolean).join('  ·  ');
+  el.append(h('div', { class: 'bname' }, z.name), h('div', { class: 'bdetail' }, detail));
+  el.style.setProperty('--tier', z.tierColor);
+  el.classList.remove('show');
+  void el.offsetWidth; // restart animation
+  el.classList.add('show');
+  clearTimeout(bannerTimer);
+  bannerTimer = window.setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+function renderHint(objs: MapObject[]) {
+  const el = $('hint');
+  const o = objs.find((o) => ['npc', 'shop', 'heal', 'sign'].includes(o.type));
+  if (!o) { el.hidden = true; return; }
+  const what = o.type === 'npc' ? `talk to ${store.data.quests.npcs[o.id!].name}`
+    : o.type === 'shop' ? 'open the shop'
+    : o.type === 'heal' ? 'heal your monsters'
+    : 'read the sign';
+  el.textContent = `Press E to ${what}`;
+  el.hidden = false;
+}
+
+export function toast(text: string, kind: ToastKind = 'info') {
+  const el = h('div', { class: `toast ${kind}` }, text);
+  const box = $('toasts');
+  box.prepend(el);
+  while (box.children.length > 6) box.lastChild!.remove();
+  setTimeout(() => el.classList.add('fade'), 5000);
+  setTimeout(() => el.remove(), 5600);
+}
+
+// ------------------------------------------------------------ chat
+
+function initChat() {
+  const input = $('chatinput') as HTMLInputElement;
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const text = input.value.trim();
+      if (text) net.send({ t: 'chat', text });
+      input.value = '';
+      input.blur();
+      e.stopPropagation();
+    }
+  });
+}
+
+function addChat(from: string, color: string, text: string) {
+  const log = $('chatlog');
+  log.append(h('div', { class: 'cl' }, h('b', { style: `color:${color}` }, from + ': '), text));
+  while (log.children.length > 60) log.firstChild!.remove();
+  log.scrollTop = log.scrollHeight;
+}
+
+// ------------------------------------------------------------ buttons
+
+function buildButtons() {
+  const el = $('buttons');
+  el.append(
+    h('button', { onclick: openParty }, 'Party (P)'),
+    h('button', { onclick: openBag }, 'Bag (B)'),
+    h('button', { onclick: openQuests }, 'Quests (Q)'),
+    h('button', { onclick: openHelp }, 'Help (H)'),
+  );
+}
+
+// ------------------------------------------------------------ overlays
+
+function renderDown() {
+  const s = store.self;
+  const el = $('overlay-down');
+  if (!s || !s.down) { el.hidden = true; return; }
+  const left = Math.max(0, (s.respawnAt - store.serverNow()) / 1000);
+  el.hidden = false;
+  clear(el);
+  el.append(h('div', { class: 'down-box' },
+    h('div', { class: 'big' }, '💀 Wiped out'),
+    h('div', null, 'All your monsters fainted. Nothing is lost: you just have to wait.'),
+    h('div', { class: 'countdown' }, `Respawning in town in ${Math.ceil(left)}s`),
+    store.world?.boss.phase === 'fight' ? h('div', { class: 'muted' }, 'You can rejoin the boss fight through the portal after respawning.') : null));
+}
+
+let victoryUntil = 0;
+function showVictory(resetIn: number) {
+  victoryUntil = Date.now() + resetIn * 1000;
+  renderVictory();
+}
+
+function renderVictory() {
+  const el = $('overlay-victory');
+  const left = (victoryUntil - Date.now()) / 1000;
+  if (left <= 0 || store.battle) { el.hidden = true; return; }
+  el.hidden = false;
+  clear(el);
+  el.append(h('div', { class: 'victory-box' },
+    h('div', { class: 'big' }, '🏆 You survived the bosses!'),
+    h('div', null, `All ${store.data.config.boss.bossesToWin} bosses were defeated. Well played, everyone.`),
+    h('div', { class: 'countdown' }, `A fresh run begins in ${Math.ceil(left)}s`)));
+}

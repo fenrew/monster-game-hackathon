@@ -1,0 +1,30 @@
+{
+  "tackle":        { "name": "Tackle",         "type": "neutral", "power": 35, "accuracy": 0.95, "target": "enemy",      "description": "A solid body slam." },
+  "quick_jab":     { "name": "Quick Jab",      "type": "neutral", "power": 25, "accuracy": 1,    "target": "enemy",      "priority": 1, "description": "Strikes before normal moves." },
+  "guard":         { "name": "Guard",          "type": "neutral", "power": 0,  "accuracy": 1,    "target": "self",       "priority": 4, "guard": 0.25, "description": "Brace: this monster takes 75% less damage this round." },
+  "bulwark":       { "name": "Bulwark",        "type": "neutral", "power": 0,  "accuracy": 1,    "target": "team",       "priority": 4, "bulwark": 0.5, "description": "Shield the whole team: every ally takes 50% less damage this round." },
+  "mend":          { "name": "Mend",           "type": "neutral", "power": 0,  "accuracy": 1,    "target": "self",       "healPct": 0.35, "description": "Restore 35% of max HP." },
+  "focus":         { "name": "Focus",          "type": "neutral", "power": 0,  "accuracy": 1,    "target": "self",       "buff": { "atk": 1 }, "description": "Raise own attack for the rest of the fight." },
+  "rally":         { "name": "Rally Cry",      "type": "neutral", "power": 0,  "accuracy": 1,    "target": "team",       "buff": { "atk": 1 }, "description": "Raise the attack of every ally in the fight." },
+  "screech":       { "name": "Screech",        "type": "neutral", "power": 0,  "accuracy": 0.9,  "target": "enemy",      "debuff": { "def": -1 }, "description": "Lower one enemy's defense." },
+
+  "spark":         { "name": "Spark",          "type": "spark",   "power": 40, "accuracy": 0.95, "target": "enemy",      "description": "A crackling jolt." },
+  "static_burst":  { "name": "Static Burst",   "type": "spark",   "power": 28, "accuracy": 0.95, "target": "allEnemies", "description": "Shocks every enemy." },
+  "thunder_fang":  { "name": "Thunder Fang",   "type": "spark",   "power": 65, "accuracy": 0.9,  "target": "enemy",      "description": "An electrified bite." },
+  "overvolt":      { "name": "Overvolt",       "type": "spark",   "power": 90, "accuracy": 0.8,  "target": "enemy",      "description": "A reckless discharge." },
+
+  "pebble_toss":   { "name": "Pebble Toss",    "type": "stone",   "power": 40, "accuracy": 0.95, "target": "enemy",      "description": "Flings a sharp stone." },
+  "rockslide":     { "name": "Rockslide",      "type": "stone",   "power": 28, "accuracy": 0.9,  "target": "allEnemies", "description": "Rocks rain on every enemy." },
+  "boulder_slam":  { "name": "Boulder Slam",   "type": "stone",   "power": 70, "accuracy": 0.9,  "target": "enemy",      "description": "A crushing tackle." },
+  "tectonic":      { "name": "Tectonic Smash", "type": "stone",   "power": 95, "accuracy": 0.8,  "target": "enemy",      "description": "Splits the ground beneath the foe." },
+  "harden":        { "name": "Harden",         "type": "stone",   "power": 0,  "accuracy": 1,    "target": "self",       "buff": { "def": 1 }, "description": "Raise own defense for the rest of the fight." },
+
+  "splash_jet":    { "name": "Splash Jet",     "type": "tide",    "power": 40, "accuracy": 0.95, "target": "enemy",      "description": "A pressurised jet of water." },
+  "undertow":      { "name": "Undertow",       "type": "tide",    "power": 28, "accuracy": 0.95, "target": "allEnemies", "description": "Drags every enemy under." },
+  "tidal_lash":    { "name": "Tidal Lash",     "type": "tide",    "power": 65, "accuracy": 0.9,  "target": "enemy",      "description": "A whip of seawater." },
+  "maelstrom":     { "name": "Maelstrom",      "type": "tide",    "power": 90, "accuracy": 0.85, "target": "enemy",      "description": "A violent whirlpool." },
+  "soothing_rain": { "name": "Soothing Rain",  "type": "tide",    "power": 0,  "accuracy": 1,    "target": "team",       "healPct": 0.2, "description": "Heal every ally by 20% of their max HP." },
+
+  "prism_crush":   { "name": "Prism Crush",    "type": "stone",   "power": 100, "accuracy": 0.95, "target": "enemy",     "description": "Crystal shards erupt around the foe." },
+  "aurora_veil":   { "name": "Aurora Veil",    "type": "neutral", "power": 0,  "accuracy": 1,    "target": "team",       "priority": 4, "bulwark": 0.35, "healPct": 0.1, "description": "Every ally takes 65% less damage this round and heals 10%." }
+}

@@ -1,0 +1,8 @@
+{
+  "potion":       { "name": "Potion",       "kind": "heal",   "healPct": 0.5,   "price": 30,  "description": "Restores 50% HP to your monster." },
+  "super_potion": { "name": "Super Potion", "kind": "heal",   "healPct": 1.0,   "price": 90,  "description": "Fully restores your monster's HP." },
+  "revive":       { "name": "Revive",       "kind": "revive", "healPct": 0.5,   "price": 120, "description": "Revives a fainted monster with 50% HP." },
+  "orb":          { "name": "Capture Orb",  "kind": "orb",    "catchMult": 1.0, "price": 20,  "description": "A basic orb for catching wild monsters." },
+  "great_orb":    { "name": "Great Orb",    "kind": "orb",    "catchMult": 1.6, "price": 60,  "description": "A better orb: 1.6x catch rate." },
+  "prism_orb":    { "name": "Prism Orb",    "kind": "orb",    "catchMult": 3.0, "price": 0,   "description": "A crystal orb: 3x catch rate. Never sold in shops." }
+}

@@ -1,0 +1,62 @@
+{
+  "npcs": {
+    "elder":  { "name": "Elder Rowan", "color": "#8e6bbf", "greeting": "Welcome, trainer. The bosses grow restless. Make your monsters strong before they come." },
+    "ranger": { "name": "Ranger Ivy",  "color": "#2f8f5a", "greeting": "The wilds past the meadow are dangerous alone. Bring friends to the marsh." },
+    "sage":   { "name": "Sage Orla",   "color": "#3c6fb5", "greeting": "The crystals sing of a monster unlike any other. Prove yourself and they may sing for you." }
+  },
+  "quests": [
+    {
+      "id": "first_steps", "giver": "elder", "name": "First Steps",
+      "description": "Defeat 3 wild monsters in the Sunny Meadow.",
+      "requires": [],
+      "objectives": [ { "kind": "defeat", "zone": "meadow", "count": 3, "label": "Defeat Meadow monsters" } ],
+      "rewards": { "coins": 80, "items": { "orb": 3 } }
+    },
+    {
+      "id": "gotta_catch", "giver": "elder", "name": "Friends in the Grass",
+      "description": "Catch 2 wild monsters. The elder will teach you to spot rare ones.",
+      "requires": ["first_steps"],
+      "objectives": [ { "kind": "catch", "count": 2, "label": "Catch any monster" } ],
+      "rewards": { "items": { "great_orb": 2 }, "rareLuck": 0.5 }
+    },
+    {
+      "id": "forest_patrol", "giver": "elder", "name": "Forest Patrol",
+      "description": "Defeat 5 wild monsters in the Mossy Forest.",
+      "requires": ["gotta_catch"],
+      "objectives": [ { "kind": "defeat", "zone": "forest", "count": 5, "label": "Defeat Forest monsters" } ],
+      "rewards": { "coins": 150, "items": { "potion": 3 } }
+    },
+    {
+      "id": "type_collector", "giver": "ranger", "name": "Type Collector",
+      "description": "Catch one monster of each type: Spark, Stone and Tide.",
+      "requires": [],
+      "objectives": [
+        { "kind": "catch", "type": "spark", "count": 1, "label": "Catch a Spark monster" },
+        { "kind": "catch", "type": "stone", "count": 1, "label": "Catch a Stone monster" },
+        { "kind": "catch", "type": "tide",  "count": 1, "label": "Catch a Tide monster" }
+      ],
+      "rewards": { "coins": 200, "items": { "great_orb": 3 } }
+    },
+    {
+      "id": "into_the_marsh", "giver": "ranger", "name": "Into the Marsh",
+      "description": "Defeat 4 wild monsters in Murkwater Marsh. Bring a friend!",
+      "requires": [],
+      "objectives": [ { "kind": "defeat", "zone": "marsh", "count": 4, "label": "Defeat Marsh monsters" } ],
+      "rewards": { "items": { "revive": 2, "super_potion": 1 }, "rareLuck": 0.5 }
+    },
+    {
+      "id": "seasoned", "giver": "sage", "name": "Seasoned Trainer",
+      "description": "Raise any monster to level 12.",
+      "requires": [],
+      "objectives": [ { "kind": "level", "level": 12, "count": 1, "label": "Have a Lv 12 monster" } ],
+      "rewards": { "items": { "prism_orb": 1 }, "rareLuck": 1 }
+    },
+    {
+      "id": "crystal_resonance", "giver": "sage", "name": "Crystal Resonance",
+      "description": "Defeat 6 monsters in the Crystal Cave. The crystals will then call a unique monster, for you alone.",
+      "requires": ["seasoned"],
+      "objectives": [ { "kind": "defeat", "zone": "cave", "count": 6, "label": "Defeat Crystal Cave monsters" } ],
+      "rewards": { "uniqueEncounter": { "monster": "aurorix", "level": 18, "zone": "cave" } }
+    }
+  ]
+}

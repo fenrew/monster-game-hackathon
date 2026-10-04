@@ -1,0 +1,44 @@
+{
+  "port": 3000,
+  "tickMs": 100,
+  "moveIntervalMs": 140,
+  "respawnSeconds": 60,
+  "reconnectGraceSeconds": 120,
+  "combat": {
+    "roundSeconds": 8,
+    "encounterPullRadius": 3,
+    "joinRadius": 1,
+    "fleeChance": 0.8,
+    "immuneStepsAfterBattle": 4,
+    "stab": 1.2,
+    "superEffective": 1.5,
+    "notEffective": 0.67,
+    "critChance": 0.0625,
+    "critMult": 1.5,
+    "maxKnownAbilities": 6
+  },
+  "boss": {
+    "intervalSeconds": 150,
+    "warningSeconds": 30,
+    "hpFormula": "baseHp * (1 + 0.6 * (N - 1))",
+    "targetsFormula": "1 + Math.floor(N / 3)",
+    "timeLimitSeconds": 300,
+    "bossesToWin": 3,
+    "victoryResetSeconds": 25
+  },
+  "progression": {
+    "xpToNextFormula": "20 + 10 * level",
+    "xpYieldFormula": "Math.round(baseXp * enemyLevel / 4)",
+    "catchFormula": "catchRate * orbMult * (1 - (2 / 3) * (hp / maxHp))",
+    "maxLevel": 30
+  },
+  "party": {
+    "maxSize": 6
+  },
+  "start": {
+    "coins": 100,
+    "items": { "potion": 3, "orb": 5 },
+    "starterLevel": 5,
+    "starters": ["zapling", "pebblit", "drizzlet"]
+  }
+}

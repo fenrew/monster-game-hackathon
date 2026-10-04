@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Survive the Bosses</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game"></div>
+  <div id="hud">
+    <div id="topbar"></div>
+    <div id="left"><div id="party"></div><div id="tracker"></div></div>
+    <div id="right"><canvas id="minimap"></canvas><div id="zoneinfo"></div><div id="toasts"></div></div>
+    <div id="banner"></div>
+    <div id="hint" hidden></div>
+    <div id="chat"><div id="chatlog"></div><input id="chatinput" placeholder="Press Enter to chat" maxlength="200" autocomplete="off"></div>
+    <div id="buttons"></div>
+  </div>
+  <div id="overlay-down" hidden></div>
+  <div id="overlay-victory" hidden></div>
+  <div id="battle" hidden></div>
+  <div id="modal" hidden></div>
+  <div id="join" hidden></div>
+  <div id="conn" hidden>Connection lost. Reconnecting…</div>
+  <script src="bundle.js"></script>
+</body>
+</html>

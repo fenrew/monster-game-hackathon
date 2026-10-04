@@ -1,0 +1,6 @@
+{
+  "spark":   { "name": "Spark",   "color": "#f2c230", "strongAgainst": "tide" },
+  "tide":    { "name": "Tide",    "color": "#3d9be9", "strongAgainst": "stone" },
+  "stone":   { "name": "Stone",   "color": "#b07d48", "strongAgainst": "spark" },
+  "neutral": { "name": "Neutral", "color": "#9a9a9a", "strongAgainst": null }
+}

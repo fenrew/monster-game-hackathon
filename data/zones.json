@@ -1,0 +1,95 @@
+[
+  {
+    "id": "arena", "name": "Boss Arena", "kind": "arena",
+    "rects": [[0, 0, 12, 10]],
+    "recommended": "everyone",
+    "groundColor": "#4a2c3a", "grassColor": "#4a2c3a", "tierColor": "#8e44ad"
+  },
+  {
+    "id": "town", "name": "Oakhollow Town", "kind": "safe",
+    "rects": [[14, 28, 12, 12]],
+    "groundColor": "#d8c8a0", "grassColor": "#d8c8a0", "tierColor": "#9fb3c8"
+  },
+  {
+    "id": "cave", "name": "Crystal Cave", "kind": "hotspot", "hotspot": true,
+    "rects": [[20, 0, 20, 12]],
+    "levelRange": [15, 20], "recommended": "3-4",
+    "groupSize": [2, 3], "hpMult": 1.4, "encounterRate": 0.08,
+    "coins": [40, 70],
+    "encounters": [
+      { "monster": "cragmole",   "weight": 25 },
+      { "monster": "bouldurr",   "weight": 20 },
+      { "monster": "voltail",    "weight": 20 },
+      { "monster": "torrentoad", "weight": 15 },
+      { "monster": "glimmoth",   "weight": 8, "rare": true },
+      { "monster": "mirelurk",   "weight": 6, "rare": true }
+    ],
+    "loot": [
+      { "item": "great_orb",    "chance": 0.35 },
+      { "item": "super_potion", "chance": 0.25 },
+      { "item": "revive",       "chance": 0.15 },
+      { "item": "prism_orb",    "chance": 0.08 }
+    ],
+    "groundColor": "#4f3f6e", "grassColor": "#5e4c82", "tierColor": "#e74c3c"
+  },
+  {
+    "id": "marsh", "name": "Murkwater Marsh", "kind": "grass",
+    "rects": [[20, 12, 20, 12]],
+    "levelRange": [10, 15], "recommended": "2",
+    "groupSize": [1, 2], "hpMult": 1.25, "encounterRate": 0.12,
+    "coins": [25, 40],
+    "encounters": [
+      { "monster": "puddlefin",  "weight": 25 },
+      { "monster": "drizzlet",   "weight": 25 },
+      { "monster": "cragmole",   "weight": 20 },
+      { "monster": "torrentoad", "weight": 10 },
+      { "monster": "mirelurk",   "weight": 4, "rare": true },
+      { "monster": "bouldurr",   "weight": 4, "rare": true }
+    ],
+    "loot": [
+      { "item": "potion",    "chance": 0.3 },
+      { "item": "great_orb", "chance": 0.15 },
+      { "item": "revive",    "chance": 0.06 }
+    ],
+    "groundColor": "#8a8a52", "grassColor": "#6f7a3a", "tierColor": "#f39c12"
+  },
+  {
+    "id": "forest", "name": "Mossy Forest", "kind": "grass",
+    "rects": [[0, 0, 20, 24]],
+    "levelRange": [5, 10], "recommended": "solo",
+    "groupSize": [1, 1], "hpMult": 1, "encounterRate": 0.12,
+    "coins": [15, 25],
+    "encounters": [
+      { "monster": "fizzbit",   "weight": 30 },
+      { "monster": "cragmole",  "weight": 30 },
+      { "monster": "puddlefin", "weight": 20 },
+      { "monster": "zapling",   "weight": 10 },
+      { "monster": "pebblit",   "weight": 10 },
+      { "monster": "voltail",   "weight": 3, "rare": true }
+    ],
+    "loot": [
+      { "item": "potion", "chance": 0.25 },
+      { "item": "orb",    "chance": 0.25 }
+    ],
+    "groundColor": "#6e9a3f", "grassColor": "#4d7a26", "tierColor": "#f1c40f"
+  },
+  {
+    "id": "meadow", "name": "Sunny Meadow", "kind": "grass",
+    "rects": [[0, 24, 40, 16]],
+    "levelRange": [1, 5], "recommended": "solo",
+    "groupSize": [1, 1], "hpMult": 1, "encounterRate": 0.12,
+    "coins": [8, 15],
+    "encounters": [
+      { "monster": "puddlefin", "weight": 30 },
+      { "monster": "pebblit",   "weight": 20 },
+      { "monster": "zapling",   "weight": 20 },
+      { "monster": "drizzlet",  "weight": 20 },
+      { "monster": "fizzbit",   "weight": 6, "rare": true }
+    ],
+    "loot": [
+      { "item": "orb",    "chance": 0.2 },
+      { "item": "potion", "chance": 0.15 }
+    ],
+    "groundColor": "#93cf6b", "grassColor": "#5fae3c", "tierColor": "#2ecc71"
+  }
+]
